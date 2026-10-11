@@ -1,25 +1,36 @@
 ---
 name: vault
 description: >-
-  Use when the user wants to set or change their Obsidian vault path, or says
-  "vault", "set vault", or "change vault".
+  Use when the user wants to set, change, or create their Obsidian vault, or says
+  "vault", "set vault", "change vault", "create vault", or "new vault".
 ---
 
-# Set Vault Path
+# Vault Management
 
-Configure the Obsidian vault path for this session.
+Configure or create the Obsidian vault for this session.
 
-## With Argument
+## Create New Vault
 
-If the user provides a path after `/vault`:
+If the user asks to create or initialize a new vault (e.g. `/vault create <path>` or "create vault at <path>"):
+- Call `obsidian_create_vault` with `path` (and optional `set_as_current`)
+- Confirm: "Vault created and registered with Obsidian desktop app at: [path]"
+
+## Set Existing Vault Path
+
+### With Argument
+
+If the user provides a path to an existing vault after `/vault`:
 - Call `obsidian_set_vault` with the provided path
 
-## Without Argument
+### Without Argument
 
 If no path is provided:
-- Ask the user: "What is the absolute path to your Obsidian vault?"
-- Once they respond, call `obsidian_set_vault` with their path
+- Ask the user: "What is the absolute path to your Obsidian vault, or would you like to create a new one?"
+- Once they respond:
+  - If creating: call `obsidian_create_vault` with their path
+  - If setting existing: call `obsidian_set_vault` with their path
 
 ## Confirmation
 
 After setting, confirm: "Vault path set to: [path]"
+

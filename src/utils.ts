@@ -1,4 +1,7 @@
 import * as path from 'path';
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import * as crypto from 'crypto';
 import matter from 'gray-matter';
 
 /**
@@ -127,4 +130,139 @@ export function applyFrontmatterUpdate(fileContent: string, update: FrontmatterU
     parsed.data[update.key] = value;
   }
   return matter.stringify(parsed.content, parsed.data);
+}
+
+/**
+ * Resolve the platform-specific path to the Obsidian desktop app configuration file (obsidian.json).
+ */
+export function getObsidianAppConfigPath(
+  platform: NodeJS.Platform = process.platform,
+  homedir: string = os.homedir()
+): string {
+  if (platform === 'win32') {
+    const appData = process.env.APPDATA || path.join(homedir, 'AppData', 'Roaming');
+    return path.join(appData, 'obsidian', 'obsidian.json');
+  }
+  if (platform === 'darwin') {
+    return path.join(homedir, 'Library', 'Application Support', 'obsidian', 'obsidian.json');
+  }
+  // Linux / other Unix-like systems (respecting XDG Base Directory specification)
+  const configHome = process.env.XDG_CONFIG_HOME || path.join(homedir, '.config');
+  return path.join(configHome, 'obsidian', 'obsidian.json');
+}
+
+/**
+ * Generate a 16-character lowercase hexadecimal ID for Obsidian vault registration.
+ */
+export function generateVaultId(): string {
+  return crypto.randomBytes(8).toString('hex');
+}
+
+export interface RegisterVaultResult {
+  registered: boolean;
+  vaultId: string;
+  alreadyExisted: boolean;
+  configPath: string;
+}
+
+/**
+ * Register a vault path in the Obsidian desktop application configuration (obsidian.json).
+ * Creates the config file if it does not exist, avoids duplicate entries, and writes atomically.
+ */
+export async function registerVaultInConfig(
+  vaultPath: string,
+  customConfigPath?: string
+): Promise<RegisterVaultResult> {
+  const resolvedVaultPath = path.resolve(vaultPath);
+  const configPath = customConfigPath || getObsidianAppConfigPath();
+
+  await fs.mkdir(path.dirname(configPath), { recursive: true });
+
+  let config: { vaults?: Record<string, { path: string; ts: number }> } = { vaults: {} };
+  let fileExists = false;
+
+  try {
+    const raw = await fs.readFile(configPath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      config = parsed;
+      if (!config.vaults || typeof config.vaults !== 'object') {
+        config.vaults = {};
+      }
+    }
+    fileExists = true;
+  } catch (e: any) {
+    if (e.code !== 'ENOENT') {
+      try {
+        await fs.copyFile(configPath, `${configPath}.corrupt.${Date.now()}`);
+      } catch {}
+    }
+    config = { vaults: {} };
+  }
+
+  // Check if vault is already registered under any existing ID
+  if (config.vaults) {
+    for (const [id, entry] of Object.entries(config.vaults)) {
+      if (entry && typeof entry.path === 'string' && path.resolve(entry.path) === resolvedVaultPath) {
+        return {
+          registered: true,
+          vaultId: id,
+          alreadyExisted: true,
+          configPath,
+        };
+      }
+    }
+  }
+
+  const vaultId = generateVaultId();
+  if (!config.vaults) config.vaults = {};
+  config.vaults[vaultId] = {
+    path: resolvedVaultPath,
+    ts: Date.now(),
+  };
+
+  const tempPath = `${configPath}.tmp.${Date.now()}`;
+  await fs.writeFile(tempPath, JSON.stringify(config, null, 2), 'utf-8');
+
+  if (fileExists) {
+    try {
+      await fs.copyFile(configPath, `${configPath}.bak`);
+    } catch {}
+  }
+
+  await fs.rename(tempPath, configPath);
+
+  return {
+    registered: true,
+    vaultId,
+    alreadyExisted: false,
+    configPath,
+  };
+}
+
+export interface CreateVaultResult {
+  path: string;
+  registered: boolean;
+  vaultId: string;
+  alreadyExisted: boolean;
+  configPath: string;
+}
+
+/**
+ * Create a physical vault directory and register it in the Obsidian desktop app configuration.
+ */
+export async function createVault(
+  vaultPath: string,
+  options?: { customConfigPath?: string }
+): Promise<CreateVaultResult> {
+  const resolvedPath = path.resolve(vaultPath);
+  await fs.mkdir(resolvedPath, { recursive: true });
+  const regResult = await registerVaultInConfig(resolvedPath, options?.customConfigPath);
+  return {
+    path: resolvedPath,
+    registered: regResult.registered,
+    vaultId: regResult.vaultId,
+    alreadyExisted: regResult.alreadyExisted,
+    configPath: regResult.configPath,
+  };
 }
