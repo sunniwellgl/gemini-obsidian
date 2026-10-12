@@ -1,0 +1,2 @@
+description = "Dehydrate and crystallize raw daily notes or inbox drafts into Four Pillars evergreen mechanism notes or subsumed case studies"
+prompt = "Please trigger the `distill` skill to scan my current daily note or specified draft for un-distilled high-signal engineering and mathematical concepts, perform semantic deduplication, and either subsume into an existing mechanism note or crystallize a new Four Pillars note with non-destructive in-place backlinking."

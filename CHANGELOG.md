@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- `distill` skill and `/obsidian:distill` slash command: Progressive knowledge dehydration pipeline that extracts Four Pillars mechanism notes or subsumes case studies with RAG deduplication.
 - `obsidian_create_vault` tool: Create a new physical Obsidian vault directory and register it with the Obsidian desktop application (`obsidian.json`) across Linux, macOS, and Windows.
 - CLI execution support for `obsidian_set_vault` and `obsidian_create_vault`.
 

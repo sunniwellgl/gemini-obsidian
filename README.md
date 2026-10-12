@@ -128,6 +128,7 @@ The following tools are exposed to the Gemini agent:
 ## Skills
 
 - `obsidian-companion`: Tool selection and vault workflow guidance.
+- `distill`: Dehydrate raw daily logs or inbox drafts into Four Pillars evergreen mechanism notes or subsumed case studies with non-destructive in-place backlinking.
 - `compound`: Promote repeated project knowledge into durable global notes.
 - `moc-update`: Suggest Maps of Content that should link to a newly created note.
 - `link-audit`: Audit broken links, orphans, and cleanup opportunities.
