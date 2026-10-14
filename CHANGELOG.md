@@ -6,8 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- `obsidian_create_vault` tool: Create a new physical Obsidian vault directory and register it with the Obsidian desktop application (`obsidian.json`) across Linux, macOS, and Windows.
-- CLI execution support for `obsidian_set_vault` and `obsidian_create_vault`.
+- `obsidian_create_vault` tool: Create a new Obsidian vault directory. Pass `register: true` to also register it with the Obsidian desktop application (`obsidian.json`) on Linux, macOS, and Windows.
+- CLI execution support for `obsidian_create_vault`.
 
 ## [1.7.1] - 2026-04-20
 
