@@ -12,8 +12,8 @@ Configure or create the Obsidian vault for this session.
 ## Create New Vault
 
 If the user asks to create or initialize a new vault (e.g. `/vault create <path>` or "create vault at <path>"):
-- Call `obsidian_create_vault` with `path` (and optional `set_as_current`)
-- Confirm: "Vault created and registered with Obsidian desktop app at: [path]"
+- Call `obsidian_create_vault` with `path` (and optional `register`, `set_as_current`)
+- Confirm: "Vault created at: [path]"
 
 ## Set Existing Vault Path
 

@@ -114,7 +114,7 @@ The following tools are exposed to the Gemini agent:
 
 ### Management & Journaling
 - `obsidian_set_vault`: Set the default Obsidian vault path for this session.
-- `obsidian_create_vault`: Create a new Obsidian vault directory and register it with the Obsidian desktop application.
+- `obsidian_create_vault`: Create a new Obsidian vault directory on disk, with optional desktop app registration.
 - `obsidian_create_note`: Create a new markdown note.
 - `obsidian_append_note`: Append text to the end of a note.
 - `obsidian_append_daily_log`: Append text to a specific heading (e.g., "Log") in today's daily note with a timestamp.

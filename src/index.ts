@@ -131,21 +131,17 @@ async function readStdin(): Promise<string> {
 
     try {
         let result;
-        if (toolName === 'obsidian_set_vault') {
-            const targetPath = parsedArgs.path || parsedArgs.vault_path;
+        if (toolName === 'obsidian_create_vault') {
+            const targetPath = parsedArgs.path;
             if (!targetPath) {
                 throw new Error("Missing required argument: --path <path>");
             }
-            VAULT_PATH = String(targetPath);
-            await saveConfig(VAULT_PATH);
-            result = `Vault path set to: ${VAULT_PATH}`;
-        } else if (toolName === 'obsidian_create_vault') {
-            const targetPath = parsedArgs.path || parsedArgs.vault_path;
-            if (!targetPath) {
-                throw new Error("Missing required argument: --path <path>");
+            if (!path.isAbsolute(String(targetPath))) {
+                throw new Error(`Argument 'path' must be an absolute path: ${targetPath}`);
             }
             const setAsCurrent = parsedArgs.set_as_current !== false && parsedArgs.set_as_current !== 'false';
-            const res = await createVault(String(targetPath));
+            const register = parsedArgs.register === true || parsedArgs.register === 'true';
+            const res = await createVault(String(targetPath), { register });
             if (setAsCurrent) {
                 VAULT_PATH = res.path;
                 await saveConfig(VAULT_PATH);
@@ -463,11 +459,12 @@ async function readStdin(): Promise<string> {
         },
         {
           name: 'obsidian_create_vault',
-          description: 'Create a new Obsidian vault directory and register it with the Obsidian desktop application.',
+          description: 'Create a new Obsidian vault directory. Optionally register it with the Obsidian desktop application (if running, restart Obsidian to load changes; desktop app may overwrite changes on exit).',
           inputSchema: {
             type: 'object',
             properties: {
               path: { type: 'string', description: 'Absolute path to the new Obsidian vault directory' },
+              register: { type: 'boolean', description: 'Whether to register the vault in Obsidian desktop application (obsidian.json). Default: false. If Obsidian is running, restart it to load changes; desktop app may overwrite changes on exit.' },
               set_as_current: { type: 'boolean', description: 'Whether to set this vault as the default for the current session (default: true)' },
             },
             required: ['path'],
@@ -700,17 +697,26 @@ async function readStdin(): Promise<string> {
           return { content: [{ type: 'text', text: `Vault path set to: ${VAULT_PATH}` }] };
       }
       if (name === 'obsidian_create_vault') {
-          const targetPath = args?.path || args?.vault_path;
+          const targetPath = args?.path;
           if (!targetPath) {
               throw new McpError(ErrorCode.InvalidParams, "Missing required argument: 'path'");
           }
+          if (!path.isAbsolute(String(targetPath))) {
+              throw new McpError(ErrorCode.InvalidParams, `Argument 'path' must be an absolute path: ${targetPath}`);
+          }
+          const register = args?.register === true;
           const setAsCurrent = args?.set_as_current !== false;
-          const res = await createVault(String(targetPath));
+          const res = await createVault(String(targetPath), { register });
           if (setAsCurrent) {
               VAULT_PATH = res.path;
               await saveConfig(VAULT_PATH);
           }
-          const statusText = `Vault created at: ${res.path}\nObsidian desktop registered: ${res.registered} (ID: ${res.vaultId})\nDefault session vault: ${setAsCurrent ? 'updated' : 'unchanged'}`;
+          let statusText = `Vault created at: ${res.path}\nDefault session vault: ${setAsCurrent ? 'updated' : 'unchanged'}`;
+          if (res.registered) {
+              statusText += `\nObsidian desktop registered: true (ID: ${res.vaultId})\nNote: If Obsidian is currently running, restart it to load the newly registered vault. Changes may be overwritten when Obsidian exits.`;
+          } else {
+              statusText += `\nObsidian desktop registered: false (desktop app registration is opt-in; pass register: true to register)`;
+          }
           return {
               content: [{
                   type: 'text',

@@ -148,11 +148,26 @@ describe('registerVaultInConfig', () => {
 });
 
 describe('createVault', () => {
-  it('creates physical directory and registers in config', async () => {
-    const vaultPath = path.join(testDir, 'PhysicalVault', 'SubFolder');
+  it('creates physical directory without registering in config by default (register: false)', async () => {
+    const vaultPath = path.join(testDir, 'PhysicalVaultDefault', 'SubFolder');
     const result = await createVault(vaultPath, { customConfigPath: fakeConfigPath });
 
-    expect(result.path).toBe(path.resolve(vaultPath));
+    expect(result.path).toBe(vaultPath);
+    expect(result.registered).toBe(false);
+    expect(result.vaultId).toBeUndefined();
+
+    const stat = await fs.stat(result.path);
+    expect(stat.isDirectory()).toBe(true);
+
+    // Config file should not have been created
+    await expect(fs.access(fakeConfigPath)).rejects.toThrow();
+  });
+
+  it('registers in config when register option is explicitly true', async () => {
+    const vaultPath = path.join(testDir, 'PhysicalVaultOptIn', 'SubFolder');
+    const result = await createVault(vaultPath, { register: true, customConfigPath: fakeConfigPath });
+
+    expect(result.path).toBe(vaultPath);
     expect(result.registered).toBe(true);
     expect(result.vaultId).toMatch(/^[0-9a-f]{16}$/);
 
@@ -160,6 +175,6 @@ describe('createVault', () => {
     expect(stat.isDirectory()).toBe(true);
 
     const content = JSON.parse(await fs.readFile(fakeConfigPath, 'utf-8'));
-    expect(content.vaults[result.vaultId].path).toBe(result.path);
+    expect(content.vaults[result.vaultId!].path).toBe(result.path);
   });
 });

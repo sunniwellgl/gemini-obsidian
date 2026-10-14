@@ -245,29 +245,37 @@ export async function registerVaultInConfig(
 export interface CreateVaultResult {
   path: string;
   registered: boolean;
-  vaultId: string;
-  alreadyExisted: boolean;
-  configPath: string;
+  vaultId?: string;
+  alreadyExisted?: boolean;
+  configPath?: string;
 }
 
 /**
- * Create a physical vault directory and register it in the Obsidian desktop app configuration.
+ * Create a physical vault directory and optionally register it in the Obsidian desktop app configuration.
  */
 export async function createVault(
   vaultPath: string,
-  options?: { customConfigPath?: string }
+  options?: { register?: boolean; customConfigPath?: string }
 ): Promise<CreateVaultResult> {
   if (!path.isAbsolute(vaultPath)) {
     throw new Error(`Vault path must be absolute: ${vaultPath}`);
   }
   const resolvedPath = vaultPath;
   await fs.mkdir(resolvedPath, { recursive: true });
-  const regResult = await registerVaultInConfig(resolvedPath, options?.customConfigPath);
+
+  if (options?.register) {
+    const regResult = await registerVaultInConfig(resolvedPath, options?.customConfigPath);
+    return {
+      path: resolvedPath,
+      registered: regResult.registered,
+      vaultId: regResult.vaultId,
+      alreadyExisted: regResult.alreadyExisted,
+      configPath: regResult.configPath,
+    };
+  }
+
   return {
     path: resolvedPath,
-    registered: regResult.registered,
-    vaultId: regResult.vaultId,
-    alreadyExisted: regResult.alreadyExisted,
-    configPath: regResult.configPath,
+    registered: false,
   };
 }
