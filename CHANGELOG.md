@@ -2,12 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.8.0] - 2026-10-14
 
 ### Added
 
 - `obsidian_create_vault` tool: Create a new Obsidian vault directory. Pass `register: true` to also register it with the Obsidian desktop application (`obsidian.json`) on Linux, macOS, and Windows.
 - CLI execution support for `obsidian_create_vault`.
+
+### Build & Maintenance
+
+- build(deps): bump sharp from 0.34.5 to 0.35.5 (requires Node.js >= 20.9)
+- build(deps-dev): bump esbuild to 0.28.2 and vitest to 4.1.11 (pulls vite 8)
+- build(deps-dev): bump transitive dependencies ip-address, express-rate-limit, @protobufjs/utf8, qs, brace-expansion, hono, fast-uri, postcss
 
 ## [1.7.1] - 2026-04-20
 

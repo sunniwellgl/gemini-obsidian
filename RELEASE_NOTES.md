@@ -1,3 +1,19 @@
+# Release v1.8.0
+
+## Summary
+Adds an `obsidian_create_vault` tool for creating new vaults, with opt-in registration in the Obsidian desktop app, and rolls up pending dependency updates.
+
+## Features
+- **`obsidian_create_vault`** — creates a new vault directory at an absolute path and, by default, makes it the session's vault (`set_as_current: false` to skip). Also available as a CLI one-shot command. Thanks to @sunniwellgl.
+- **Desktop app registration (opt-in)** — with `register: true`, the vault is added to Obsidian's `obsidian.json` (Linux XDG, macOS, Windows). Writes are atomic with a `.bak` backup, existing entries are never duplicated, and an unreadable or malformed config aborts the write instead of overwriting it. If Obsidian is running, restart it to see the new vault; it may overwrite the file on exit.
+
+## Build & Maintenance
+- `sharp` bumped 0.34.5 → 0.35.5. Requires Node.js >= 20.9.
+- `esbuild` (dev) → 0.28.2, `vitest` (dev) 3 → 4.1.11, which pulls `vite` 8.
+- Transitive lockfile bumps: ip-address, express-rate-limit, @protobufjs/utf8, qs, brace-expansion, hono, fast-uri, postcss.
+
+---
+
 # Release v1.7.1
 
 ## Summary
