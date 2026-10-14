@@ -141,6 +141,21 @@ describe('registerVaultInConfig', () => {
     expect(content).toBe(corruptedContent);
   });
 
+  it('treats non-normalized spellings of the same path as one vault', async () => {
+    const vaultPath = path.join(testDir, 'SameVault');
+    const firstResult = await registerVaultInConfig(vaultPath, fakeConfigPath);
+
+    const secondResult = await registerVaultInConfig(`${vaultPath}${path.sep}`, fakeConfigPath);
+    expect(secondResult.alreadyExisted).toBe(true);
+    expect(secondResult.vaultId).toBe(firstResult.vaultId);
+
+    const thirdResult = await registerVaultInConfig([testDir, 'Other', '..', 'SameVault'].join(path.sep), fakeConfigPath);
+    expect(thirdResult.alreadyExisted).toBe(true);
+
+    const content = JSON.parse(await fs.readFile(fakeConfigPath, 'utf-8'));
+    expect(Object.keys(content.vaults).length).toBe(1);
+  });
+
   it('rejects relative vault paths', async () => {
     await expect(registerVaultInConfig('relative/path/to/vault', fakeConfigPath)).rejects.toThrow(/absolute/i);
     await expect(createVault('relative/path/to/vault', { customConfigPath: fakeConfigPath })).rejects.toThrow(/absolute/i);

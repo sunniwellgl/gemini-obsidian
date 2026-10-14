@@ -176,7 +176,7 @@ export async function registerVaultInConfig(
   if (!path.isAbsolute(vaultPath)) {
     throw new Error(`Vault path must be absolute: ${vaultPath}`);
   }
-  const resolvedVaultPath = vaultPath;
+  const resolvedVaultPath = path.resolve(vaultPath);
   const configPath = customConfigPath || getObsidianAppConfigPath();
 
   await fs.mkdir(path.dirname(configPath), { recursive: true });
@@ -260,7 +260,7 @@ export async function createVault(
   if (!path.isAbsolute(vaultPath)) {
     throw new Error(`Vault path must be absolute: ${vaultPath}`);
   }
-  const resolvedPath = vaultPath;
+  const resolvedPath = path.resolve(vaultPath);
   await fs.mkdir(resolvedPath, { recursive: true });
 
   if (options?.register) {
