@@ -129,18 +129,21 @@ describe('registerVaultInConfig', () => {
     expect(Object.keys(content.vaults).length).toBe(1);
   });
 
-  it('recovers gracefully from malformed or corrupted config files', async () => {
+  it('rejects when config file is corrupted and leaves original file untouched', async () => {
     await fs.mkdir(path.dirname(fakeConfigPath), { recursive: true });
-    await fs.writeFile(fakeConfigPath, '{ not valid json...', 'utf-8');
+    const corruptedContent = '{ not valid json...';
+    await fs.writeFile(fakeConfigPath, corruptedContent, 'utf-8');
 
     const vaultPath = path.join(testDir, 'RecoverVault');
-    const result = await registerVaultInConfig(vaultPath, fakeConfigPath);
+    await expect(registerVaultInConfig(vaultPath, fakeConfigPath)).rejects.toThrow();
 
-    expect(result.registered).toBe(true);
-    expect(result.alreadyExisted).toBe(false);
+    const content = await fs.readFile(fakeConfigPath, 'utf-8');
+    expect(content).toBe(corruptedContent);
+  });
 
-    const content = JSON.parse(await fs.readFile(fakeConfigPath, 'utf-8'));
-    expect(content.vaults[result.vaultId].path).toBe(path.resolve(vaultPath));
+  it('rejects relative vault paths', async () => {
+    await expect(registerVaultInConfig('relative/path/to/vault', fakeConfigPath)).rejects.toThrow(/absolute/i);
+    await expect(createVault('relative/path/to/vault', { customConfigPath: fakeConfigPath })).rejects.toThrow(/absolute/i);
   });
 });
 

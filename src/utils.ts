@@ -173,7 +173,10 @@ export async function registerVaultInConfig(
   vaultPath: string,
   customConfigPath?: string
 ): Promise<RegisterVaultResult> {
-  const resolvedVaultPath = path.resolve(vaultPath);
+  if (!path.isAbsolute(vaultPath)) {
+    throw new Error(`Vault path must be absolute: ${vaultPath}`);
+  }
+  const resolvedVaultPath = vaultPath;
   const configPath = customConfigPath || getObsidianAppConfigPath();
 
   await fs.mkdir(path.dirname(configPath), { recursive: true });
@@ -192,12 +195,11 @@ export async function registerVaultInConfig(
     }
     fileExists = true;
   } catch (e: any) {
-    if (e.code !== 'ENOENT') {
-      try {
-        await fs.copyFile(configPath, `${configPath}.corrupt.${Date.now()}`);
-      } catch {}
+    if (e.code === 'ENOENT') {
+      config = { vaults: {} };
+    } else {
+      throw e;
     }
-    config = { vaults: {} };
   }
 
   // Check if vault is already registered under any existing ID
@@ -255,7 +257,10 @@ export async function createVault(
   vaultPath: string,
   options?: { customConfigPath?: string }
 ): Promise<CreateVaultResult> {
-  const resolvedPath = path.resolve(vaultPath);
+  if (!path.isAbsolute(vaultPath)) {
+    throw new Error(`Vault path must be absolute: ${vaultPath}`);
+  }
+  const resolvedPath = vaultPath;
   await fs.mkdir(resolvedPath, { recursive: true });
   const regResult = await registerVaultInConfig(resolvedPath, options?.customConfigPath);
   return {
