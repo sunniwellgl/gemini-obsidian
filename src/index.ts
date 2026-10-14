@@ -46,6 +46,7 @@ import {
   replaceInNote,
   applyFrontmatterUpdate,
   stripHeadingFromLink,
+  createVault,
 } from './utils.js';
 
 let VAULT_PATH: string | null = process.env.OBSIDIAN_VAULT_PATH || null;
@@ -109,7 +110,7 @@ async function readStdin(): Promise<string> {
   const args = process.argv.slice(2);
   
   // If arguments start with a tool name (simple heuristic)
-  const knownTools = ['obsidian_list_notes', 'obsidian_read_note', 'obsidian_search_notes', 'obsidian_rag_index', 'obsidian_rag_query', 'obsidian_set_vault', 'obsidian_create_note', 'obsidian_append_note', 'obsidian_get_daily_note', 'obsidian_get_backlinks', 'obsidian_get_links', 'obsidian_move_note', 'obsidian_update_frontmatter', 'obsidian_append_daily_log', 'obsidian_replace_section', 'obsidian_insert_at_heading', 'obsidian_replace_in_note', 'obsidian_get_broken_links', 'validate_frontmatter'];
+  const knownTools = ['obsidian_list_notes', 'obsidian_read_note', 'obsidian_search_notes', 'obsidian_rag_index', 'obsidian_rag_query', 'obsidian_set_vault', 'obsidian_create_vault', 'obsidian_create_note', 'obsidian_append_note', 'obsidian_get_daily_note', 'obsidian_get_backlinks', 'obsidian_get_links', 'obsidian_move_note', 'obsidian_update_frontmatter', 'obsidian_append_daily_log', 'obsidian_replace_section', 'obsidian_insert_at_heading', 'obsidian_replace_in_note', 'obsidian_get_broken_links', 'validate_frontmatter'];
   
   if (args.length > 0 && knownTools.includes(args[0])) {
     const toolName = args[0];
@@ -130,7 +131,23 @@ async function readStdin(): Promise<string> {
 
     try {
         let result;
-        if (toolName === 'obsidian_list_notes') {
+        if (toolName === 'obsidian_create_vault') {
+            const targetPath = parsedArgs.path;
+            if (!targetPath) {
+                throw new Error("Missing required argument: --path <path>");
+            }
+            if (!path.isAbsolute(String(targetPath))) {
+                throw new Error(`Argument 'path' must be an absolute path: ${targetPath}`);
+            }
+            const setAsCurrent = parsedArgs.set_as_current !== false && parsedArgs.set_as_current !== 'false';
+            const register = parsedArgs.register === true || parsedArgs.register === 'true';
+            const res = await createVault(String(targetPath), { register });
+            if (setAsCurrent) {
+                VAULT_PATH = res.path;
+                await saveConfig(VAULT_PATH);
+            }
+            result = JSON.stringify(res, null, 2);
+        } else if (toolName === 'obsidian_list_notes') {
             const vp = getVaultPath(parsedArgs.vault_path);
             const pattern = listNotesPattern(parsedArgs.subfolder ? String(parsedArgs.subfolder) : undefined);
             const files = await glob(pattern, { cwd: vp, follow: true });
@@ -441,6 +458,19 @@ async function readStdin(): Promise<string> {
           },
         },
         {
+          name: 'obsidian_create_vault',
+          description: 'Create a new Obsidian vault directory. Optionally register it with the Obsidian desktop application (if running, restart Obsidian to load changes; desktop app may overwrite changes on exit).',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              path: { type: 'string', description: 'Absolute path to the new Obsidian vault directory' },
+              register: { type: 'boolean', description: 'Whether to register the vault in Obsidian desktop application (obsidian.json). Default: false. If Obsidian is running, restart it to load changes; desktop app may overwrite changes on exit.' },
+              set_as_current: { type: 'boolean', description: 'Whether to set this vault as the default for the current session (default: true)' },
+            },
+            required: ['path'],
+          },
+        },
+        {
           name: 'obsidian_list_notes',
           description: 'List markdown files in the vault or a subdirectory.',
           inputSchema: {
@@ -665,6 +695,34 @@ async function readStdin(): Promise<string> {
           VAULT_PATH = String(args?.path);
           await saveConfig(VAULT_PATH);
           return { content: [{ type: 'text', text: `Vault path set to: ${VAULT_PATH}` }] };
+      }
+      if (name === 'obsidian_create_vault') {
+          const targetPath = args?.path;
+          if (!targetPath) {
+              throw new McpError(ErrorCode.InvalidParams, "Missing required argument: 'path'");
+          }
+          if (!path.isAbsolute(String(targetPath))) {
+              throw new McpError(ErrorCode.InvalidParams, `Argument 'path' must be an absolute path: ${targetPath}`);
+          }
+          const register = args?.register === true;
+          const setAsCurrent = args?.set_as_current !== false;
+          const res = await createVault(String(targetPath), { register });
+          if (setAsCurrent) {
+              VAULT_PATH = res.path;
+              await saveConfig(VAULT_PATH);
+          }
+          let statusText = `Vault created at: ${res.path}\nDefault session vault: ${setAsCurrent ? 'updated' : 'unchanged'}`;
+          if (res.registered) {
+              statusText += `\nObsidian desktop registered: true (ID: ${res.vaultId})\nNote: If Obsidian is currently running, restart it to load the newly registered vault. Changes may be overwritten when Obsidian exits.`;
+          } else {
+              statusText += `\nObsidian desktop registered: false (desktop app registration is opt-in; pass register: true to register)`;
+          }
+          return {
+              content: [{
+                  type: 'text',
+                  text: statusText,
+              }],
+          };
       }
       if (name === 'obsidian_list_notes') {
           const vp = getVaultPath(args?.vault_path as string);
