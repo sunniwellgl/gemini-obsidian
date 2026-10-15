@@ -47,6 +47,8 @@ import {
   applyFrontmatterUpdate,
   stripHeadingFromLink,
   createVault,
+  isObsidianVault,
+  validateVaultRoot,
 } from './utils.js';
 
 let VAULT_PATH: string | null = process.env.OBSIDIAN_VAULT_PATH || null;
@@ -69,12 +71,28 @@ async function loadConfig(): Promise<string | null> {
 /**
  * Helper to validate vault path
  */
-function getVaultPath(providedPath?: string): string {
-  const p = providedPath || VAULT_PATH;
-  if (!p) {
-    throw new McpError(ErrorCode.InvalidParams, "Vault path is not set. Use obsidian_set_vault or provide 'vault_path' argument.");
+/**
+ * The vault root comes only from OBSIDIAN_VAULT_PATH, the saved config or
+ * obsidian_set_vault / obsidian_create_vault (which validate it). Tool
+ * arguments never override it: they are model-controlled and could
+ * otherwise relocate the root outside the vault (GHSA-74mh-44f5-p46j).
+ */
+function getVaultPath(): string {
+  if (!VAULT_PATH) {
+    throw new McpError(ErrorCode.InvalidParams, "Vault path is not set. Use obsidian_set_vault or set OBSIDIAN_VAULT_PATH.");
   }
-  return p;
+  return VAULT_PATH;
+}
+
+/**
+ * CLI one-shot mode is run by the user from a shell, so it may still take
+ * --vault_path, but only when it points at a real Obsidian vault.
+ */
+async function getCliVaultPath(override?: unknown): Promise<string> {
+  if (override !== undefined && override !== true) {
+    return validateVaultRoot(String(override));
+  }
+  return getVaultPath();
 }
 
 async function readStdin(): Promise<string> {
@@ -103,7 +121,12 @@ async function readStdin(): Promise<string> {
 (async () => {
   // Load config if environment variable is not set
   if (!VAULT_PATH) {
-      VAULT_PATH = await loadConfig();
+      const saved = await loadConfig();
+      if (saved && await isObsidianVault(saved)) {
+          VAULT_PATH = saved;
+      } else if (saved) {
+          console.error(`[gemini-obsidian] Ignoring saved vault path that is not an Obsidian vault: ${saved}. Run obsidian_set_vault to set it again.`);
+      }
   }
 
   // Handle CLI args for one-shot mode
@@ -148,29 +171,29 @@ async function readStdin(): Promise<string> {
             }
             result = JSON.stringify(res, null, 2);
         } else if (toolName === 'obsidian_list_notes') {
-            const vp = getVaultPath(parsedArgs.vault_path);
+            const vp = await getCliVaultPath(parsedArgs.vault_path);
             const pattern = listNotesPattern(parsedArgs.subfolder ? String(parsedArgs.subfolder) : undefined);
             const files = await glob(pattern, { cwd: vp, follow: true });
             result = JSON.stringify(files.slice(0, 100), null, 2) + (files.length > 100 ? `\n...and ${files.length - 100} more.` : '');
         } else if (toolName === 'obsidian_read_note') {
-            const vp = getVaultPath(parsedArgs.vault_path);
+            const vp = await getCliVaultPath(parsedArgs.vault_path);
             const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
             result = await fs.readFile(filePath, 'utf-8');
         } else if (toolName === 'obsidian_create_note') {
-            const vp = getVaultPath(parsedArgs.vault_path);
+            const vp = await getCliVaultPath(parsedArgs.vault_path);
             const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
             const content = String(parsedArgs.content || '');
             await fs.mkdir(path.dirname(filePath), { recursive: true });
             await fs.writeFile(filePath, content, 'utf-8');
             result = `Created note: ${parsedArgs.file_path}`;
         } else if (toolName === 'obsidian_append_note') {
-            const vp = getVaultPath(parsedArgs.vault_path);
+            const vp = await getCliVaultPath(parsedArgs.vault_path);
             const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
             const content = String(parsedArgs.content || '');
             await fs.appendFile(filePath, '\n' + content, 'utf-8');
             result = `Appended to note: ${parsedArgs.file_path}`;
         } else if (toolName === 'obsidian_get_daily_note') {
-             const vp = getVaultPath(parsedArgs.vault_path);
+             const vp = await getCliVaultPath(parsedArgs.vault_path);
              const dateStr = new Date().toISOString().split('T')[0];
              const dailyFolder = (await fs.stat(path.join(vp, 'Daily Notes')).catch(() => null)) ? 'Daily Notes' : '';
              const fileName = `${dateStr}.md`;
@@ -184,7 +207,7 @@ async function readStdin(): Promise<string> {
                  result = content;
              }
         } else if (toolName === 'obsidian_search_notes') {
-            const vp = getVaultPath(parsedArgs.vault_path);
+            const vp = await getCliVaultPath(parsedArgs.vault_path);
             const query = String(parsedArgs.query).toLowerCase();
             const files = await glob('**/*.md', { cwd: vp, follow: true });
             const matches: string[] = [];
@@ -207,13 +230,13 @@ async function readStdin(): Promise<string> {
                     process.exit(0);
                 }
                 const input = JSON.parse(inputStr);
-                vp = getVaultPath(input.tool_input?.vault_path || VAULT_PATH);
+                vp = getVaultPath();
                 fp = input.tool_input?.file_path;
                 if (!fp) {
                     process.exit(0);
                 }
             } else {
-                vp = getVaultPath(parsedArgs.vault_path);
+                vp = await getCliVaultPath(parsedArgs.vault_path);
                 fp = parsedArgs.file_path ? String(parsedArgs.file_path) : null;
             }
             const force = parsedArgs.force_reindex === true || parsedArgs.force === true;
@@ -230,7 +253,7 @@ async function readStdin(): Promise<string> {
             const res = await indexer.search(query, limit);
             result = res.map((r: any) => `File: ${r.path}\nContent: ${r.text}`).join('\n---\n');
         } else if (toolName === 'obsidian_get_backlinks') {
-            const vp = getVaultPath(parsedArgs.vault_path);
+            const vp = await getCliVaultPath(parsedArgs.vault_path);
             const target = String(parsedArgs.file_name).replace(/\.md$/i, ''); 
             const linkRegex = new RegExp(`\\[\\[${target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([\\]\\|#])`, 'i');
             
@@ -256,19 +279,19 @@ async function readStdin(): Promise<string> {
                  result = `Found ${backlinks.length} backlinks for "[[${target}]]":\n` + backlinks.map(f => `- ${f}`).join('\n');
             }
         } else if (toolName === 'obsidian_get_links') {
-            const vp = getVaultPath(parsedArgs.vault_path);
+            const vp = await getCliVaultPath(parsedArgs.vault_path);
             const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
             const content = await fs.readFile(filePath, 'utf-8');
             result = JSON.stringify(extractWikilinks(content), null, 2);
         } else if (toolName === 'obsidian_move_note') {
-            const vp = getVaultPath(parsedArgs.vault_path);
+            const vp = await getCliVaultPath(parsedArgs.vault_path);
             const source = getSafeFilePath(vp, String(parsedArgs.source_path));
             const dest = getSafeFilePath(vp, String(parsedArgs.dest_path));
             await fs.mkdir(path.dirname(dest), { recursive: true });
             await fs.rename(source, dest);
             result = `Moved ${parsedArgs.source_path} to ${parsedArgs.dest_path}`;
         } else if (toolName === 'obsidian_update_frontmatter') {
-            const vp = getVaultPath(parsedArgs.vault_path);
+            const vp = await getCliVaultPath(parsedArgs.vault_path);
             const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
             const fileContent = await fs.readFile(filePath, 'utf-8');
             let updateArg: Parameters<typeof applyFrontmatterUpdate>[1];
@@ -283,7 +306,7 @@ async function readStdin(): Promise<string> {
             await fs.writeFile(filePath, applyFrontmatterUpdate(fileContent, updateArg), 'utf-8');
             result = `Updated frontmatter in ${parsedArgs.file_path}`;
         } else if (toolName === 'obsidian_replace_section') {
-            const vp = getVaultPath(parsedArgs.vault_path);
+            const vp = await getCliVaultPath(parsedArgs.vault_path);
             const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
             const heading = String(parsedArgs.heading);
             const content = String(parsedArgs.content);
@@ -293,7 +316,7 @@ async function readStdin(): Promise<string> {
             await fs.writeFile(filePath, replaceSection(fileContent, range, content), 'utf-8');
             result = `Replaced section "${heading}" in ${parsedArgs.file_path}`;
         } else if (toolName === 'obsidian_insert_at_heading') {
-            const vp = getVaultPath(parsedArgs.vault_path);
+            const vp = await getCliVaultPath(parsedArgs.vault_path);
             const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
             const heading = String(parsedArgs.heading);
             const content = String(parsedArgs.content);
@@ -303,7 +326,7 @@ async function readStdin(): Promise<string> {
             await fs.writeFile(filePath, insertAtHeading(fileContent, heading, content, position, range), 'utf-8');
             result = `Inserted content under "${heading}" in ${parsedArgs.file_path}`;
         } else if (toolName === 'obsidian_append_daily_log') {
-            const vp = getVaultPath(parsedArgs.vault_path);
+            const vp = await getCliVaultPath(parsedArgs.vault_path);
             const heading = String(parsedArgs.heading);
             const content = String(parsedArgs.content);
             const dateStr = new Date().toISOString().split('T')[0];
@@ -326,14 +349,14 @@ async function readStdin(): Promise<string> {
             await fs.writeFile(filePath, fileContent, 'utf-8');
             result = `Appended to daily note under "${heading}"`;
         } else if (toolName === 'obsidian_replace_in_note') {
-            const vp = getVaultPath(parsedArgs.vault_path);
+            const vp = await getCliVaultPath(parsedArgs.vault_path);
             const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
             const fileContent = await fs.readFile(filePath, 'utf-8');
             const updated = replaceInNote(fileContent, String(parsedArgs.old_text), String(parsedArgs.new_text ?? ''));
             await fs.writeFile(filePath, updated, 'utf-8');
             result = `Replaced text in ${parsedArgs.file_path}`;
         } else if (toolName === 'obsidian_get_broken_links') {
-            const vp = getVaultPath(parsedArgs.vault_path);
+            const vp = await getCliVaultPath(parsedArgs.vault_path);
             const pattern = listNotesPattern(parsedArgs.subfolder ? String(parsedArgs.subfolder) : undefined);
             const files = await glob(pattern, { cwd: vp, follow: true });
             const allFiles = await glob('**/*.md', { cwd: vp, follow: true });
@@ -381,7 +404,7 @@ async function readStdin(): Promise<string> {
 
             let vp: string;
             try {
-                vp = getVaultPath(input.tool_input?.vault_path || undefined);
+                vp = getVaultPath();
             } catch {
                 process.exit(0);
             }
@@ -448,7 +471,7 @@ async function readStdin(): Promise<string> {
       tools: [
         {
           name: 'obsidian_set_vault',
-          description: 'Set the default Obsidian vault path for this session.',
+          description: 'Set the default Obsidian vault path. The path must be an existing Obsidian vault (contains a .obsidian folder). It is saved to ~/.gemini-obsidian.config.json for future sessions.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -477,7 +500,6 @@ async function readStdin(): Promise<string> {
             type: 'object',
             properties: {
               subfolder: { type: 'string', description: 'Optional subfolder to list' },
-              vault_path: { type: 'string', description: 'Optional vault path override' },
             },
           },
         },
@@ -488,7 +510,6 @@ async function readStdin(): Promise<string> {
             type: 'object',
             properties: {
               file_path: { type: 'string', description: 'Relative path to the note' },
-              vault_path: { type: 'string', description: 'Optional vault path override' },
             },
             required: ['file_path'],
           },
@@ -501,7 +522,6 @@ async function readStdin(): Promise<string> {
             properties: {
               file_path: { type: 'string', description: 'Relative path for the new note (e.g. "Ideas/MyIdea.md")' },
               content: { type: 'string', description: 'Initial content of the note' },
-              vault_path: { type: 'string', description: 'Optional vault path override' },
             },
             required: ['file_path', 'content'],
           },
@@ -514,7 +534,6 @@ async function readStdin(): Promise<string> {
             properties: {
               file_path: { type: 'string', description: 'Relative path to the note' },
               content: { type: 'string', description: 'Text to append' },
-              vault_path: { type: 'string', description: 'Optional vault path override' },
             },
             required: ['file_path', 'content'],
           },
@@ -525,7 +544,6 @@ async function readStdin(): Promise<string> {
           inputSchema: {
             type: 'object',
             properties: {
-              vault_path: { type: 'string', description: 'Optional vault path override' },
             },
           },
         },
@@ -536,7 +554,6 @@ async function readStdin(): Promise<string> {
             type: 'object',
             properties: {
               query: { type: 'string', description: 'Text to search for' },
-              vault_path: { type: 'string', description: 'Optional vault path override' },
             },
             required: ['query'],
           },
@@ -547,7 +564,6 @@ async function readStdin(): Promise<string> {
           inputSchema: {
             type: 'object',
             properties: {
-              vault_path: { type: 'string', description: 'Optional vault path override' },
               file_path: { type: 'string', description: 'Relative path to a specific note to re-index' },
               force_reindex: { type: 'boolean', description: 'Force full re-index, ignoring cached file hashes (default: false)' },
             },
@@ -572,7 +588,6 @@ async function readStdin(): Promise<string> {
             type: 'object',
             properties: {
               file_name: { type: 'string', description: 'Name of the note to find backlinks for (without extension)' },
-              vault_path: { type: 'string', description: 'Optional vault path override' },
             },
             required: ['file_name'],
           },
@@ -584,7 +599,6 @@ async function readStdin(): Promise<string> {
             type: 'object',
             properties: {
               file_path: { type: 'string', description: 'Relative path to the note' },
-              vault_path: { type: 'string', description: 'Optional vault path override' },
             },
             required: ['file_path'],
           },
@@ -597,7 +611,6 @@ async function readStdin(): Promise<string> {
             properties: {
               source_path: { type: 'string', description: 'Current relative path of the note' },
               dest_path: { type: 'string', description: 'New relative path for the note (e.g. "Archive/OldNote.md")' },
-              vault_path: { type: 'string', description: 'Optional vault path override' },
             },
             required: ['source_path', 'dest_path'],
           },
@@ -612,7 +625,6 @@ async function readStdin(): Promise<string> {
               key: { type: 'string', description: 'Frontmatter key to update (single-key mode)' },
               value: { type: 'string', description: 'New value for the key (JSON stringified if array/object; single-key mode)' },
               updates: { type: 'object', description: 'JSON object of key/value pairs to set at once (batch mode, alternative to key+value)' },
-              vault_path: { type: 'string', description: 'Optional vault path override' },
             },
             required: ['file_path'],
           },
@@ -625,7 +637,6 @@ async function readStdin(): Promise<string> {
             properties: {
               heading: { type: 'string', description: 'Heading to append under (e.g., "Work Log", "Ideas")' },
               content: { type: 'string', description: 'Text to append' },
-              vault_path: { type: 'string', description: 'Optional vault path override' },
             },
             required: ['heading', 'content'],
           },
@@ -639,7 +650,6 @@ async function readStdin(): Promise<string> {
               file_path: { type: 'string', description: 'Relative path to the note' },
               heading: { type: 'string', description: 'Heading text to find (e.g. "Status")' },
               content: { type: 'string', description: 'New section body (replaces everything between heading and next same/higher-level heading)' },
-              vault_path: { type: 'string', description: 'Optional vault path override' },
             },
             required: ['file_path', 'heading', 'content'],
           },
@@ -654,7 +664,6 @@ async function readStdin(): Promise<string> {
               heading: { type: 'string', description: 'Heading text to find (e.g. "Notes")' },
               content: { type: 'string', description: 'Text to insert' },
               position: { type: 'string', enum: ['beginning', 'end'], description: 'Insert at beginning or end of section (default: end)' },
-              vault_path: { type: 'string', description: 'Optional vault path override' },
             },
             required: ['file_path', 'heading', 'content'],
           },
@@ -668,7 +677,6 @@ async function readStdin(): Promise<string> {
               file_path: { type: 'string', description: 'Relative path to the note' },
               old_text: { type: 'string', description: 'Exact text to find and replace' },
               new_text: { type: 'string', description: 'Replacement text (default: empty string)' },
-              vault_path: { type: 'string', description: 'Optional vault path override' },
             },
             required: ['file_path', 'old_text'],
           },
@@ -680,7 +688,6 @@ async function readStdin(): Promise<string> {
             type: 'object',
             properties: {
               subfolder: { type: 'string', description: 'Limit scan to this subfolder (optional; default: entire vault)' },
-              vault_path: { type: 'string', description: 'Optional vault path override' },
             },
           },
         },
@@ -692,7 +699,7 @@ async function readStdin(): Promise<string> {
     const { name, arguments: args } = request.params;
     try {
       if (name === 'obsidian_set_vault') {
-          VAULT_PATH = String(args?.path);
+          VAULT_PATH = await validateVaultRoot(String(args?.path ?? ''));
           await saveConfig(VAULT_PATH);
           return { content: [{ type: 'text', text: `Vault path set to: ${VAULT_PATH}` }] };
       }
@@ -725,19 +732,19 @@ async function readStdin(): Promise<string> {
           };
       }
       if (name === 'obsidian_list_notes') {
-          const vp = getVaultPath(args?.vault_path as string);
+          const vp = getVaultPath();
           const pattern = listNotesPattern(args?.subfolder ? String(args.subfolder) : undefined);
           const files = await glob(pattern, { cwd: vp, follow: true });
           return { content: [{ type: 'text', text: JSON.stringify(files.slice(0, 100), null, 2) + (files.length > 100 ? `\n...and ${files.length - 100} more.` : '') }] };
       }
       if (name === 'obsidian_read_note') {
-          const vp = getVaultPath(args?.vault_path as string);
+          const vp = getVaultPath();
           const filePath = getSafeFilePath(vp, String(args?.file_path));
           const content = await fs.readFile(filePath, 'utf-8');
           return { content: [{ type: 'text', text: content }] };
       }
       if (name === 'obsidian_create_note') {
-          const vp = getVaultPath(args?.vault_path as string);
+          const vp = getVaultPath();
           const filePath = getSafeFilePath(vp, String(args?.file_path));
           const content = String(args?.content || '');
           await fs.mkdir(path.dirname(filePath), { recursive: true });
@@ -745,14 +752,14 @@ async function readStdin(): Promise<string> {
           return { content: [{ type: 'text', text: `Created note: ${args?.file_path}` }] };
       }
       if (name === 'obsidian_append_note') {
-          const vp = getVaultPath(args?.vault_path as string);
+          const vp = getVaultPath();
           const filePath = getSafeFilePath(vp, String(args?.file_path));
           const content = String(args?.content || '');
           await fs.appendFile(filePath, '\n' + content, 'utf-8');
           return { content: [{ type: 'text', text: `Appended to note: ${args?.file_path}` }] };
       }
       if (name === 'obsidian_get_daily_note') {
-           const vp = getVaultPath(args?.vault_path as string);
+           const vp = getVaultPath();
            const dateStr = new Date().toISOString().split('T')[0];
            const dailyFolder = (await fs.stat(path.join(vp, 'Daily Notes')).catch(() => null)) ? 'Daily Notes' : '';
            const fileName = `${dateStr}.md`;
@@ -768,7 +775,7 @@ async function readStdin(): Promise<string> {
            return { content: [{ type: 'text', text: content }] };
       }
       if (name === 'obsidian_search_notes') {
-          const vp = getVaultPath(args?.vault_path as string);
+          const vp = getVaultPath();
           const query = String(args?.query).toLowerCase();
           const files = await glob('**/*.md', { cwd: vp, follow: true });
           const matches: string[] = [];
@@ -785,7 +792,7 @@ async function readStdin(): Promise<string> {
           return { content: [{ type: 'text', text: matches.join('\n') }] };
       }
       if (name === 'obsidian_rag_index') {
-          const vp = getVaultPath(args?.vault_path as string);
+          const vp = getVaultPath();
           const fp = args?.file_path ? String(args.file_path) : null;
           const force = args?.force_reindex === true;
           let result;
@@ -806,7 +813,7 @@ async function readStdin(): Promise<string> {
           return { content: [{ type: 'text', text: formatted }] };
       }
       if (name === 'obsidian_get_backlinks') {
-          const vp = getVaultPath(args?.vault_path as string);
+          const vp = getVaultPath();
           const target = String(args?.file_name).replace(/\.md$/i, ''); 
           const linkRegex = new RegExp(`\\[\\[${target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([\\]\\|#])`, 'i');
           
@@ -834,13 +841,13 @@ async function readStdin(): Promise<string> {
           return { content: [{ type: 'text', text: `Found ${backlinks.length} backlinks for "[[${target}]]":\n` + backlinks.map(f => `- ${f}`).join('\n') }] };
       }
       if (name === 'obsidian_get_links') {
-          const vp = getVaultPath(args?.vault_path as string);
+          const vp = getVaultPath();
           const filePath = getSafeFilePath(vp, String(args?.file_path));
           const content = await fs.readFile(filePath, 'utf-8');
           return { content: [{ type: 'text', text: JSON.stringify(extractWikilinks(content), null, 2) }] };
       }
       if (name === 'obsidian_move_note') {
-          const vp = getVaultPath(args?.vault_path as string);
+          const vp = getVaultPath();
           const source = getSafeFilePath(vp, String(args?.source_path));
           const dest = getSafeFilePath(vp, String(args?.dest_path));
           
@@ -849,7 +856,7 @@ async function readStdin(): Promise<string> {
           return { content: [{ type: 'text', text: `Moved ${args?.source_path} to ${args?.dest_path}` }] };
       }
       if (name === 'obsidian_update_frontmatter') {
-          const vp = getVaultPath(args?.vault_path as string);
+          const vp = getVaultPath();
           const filePath = getSafeFilePath(vp, String(args?.file_path));
           const fileContent = await fs.readFile(filePath, 'utf-8');
           const updateArg = (args?.updates && typeof args.updates === 'object')
@@ -859,7 +866,7 @@ async function readStdin(): Promise<string> {
           return { content: [{ type: 'text', text: `Updated frontmatter in ${args?.file_path}` }] };
       }
       if (name === 'obsidian_replace_section') {
-          const vp = getVaultPath(args?.vault_path as string);
+          const vp = getVaultPath();
           const filePath = getSafeFilePath(vp, String(args?.file_path));
           const heading = String(args?.heading);
           const content = String(args?.content);
@@ -870,7 +877,7 @@ async function readStdin(): Promise<string> {
           return { content: [{ type: 'text', text: `Replaced section "${heading}" in ${args?.file_path}` }] };
       }
       if (name === 'obsidian_insert_at_heading') {
-          const vp = getVaultPath(args?.vault_path as string);
+          const vp = getVaultPath();
           const filePath = getSafeFilePath(vp, String(args?.file_path));
           const heading = String(args?.heading);
           const content = String(args?.content);
@@ -881,7 +888,7 @@ async function readStdin(): Promise<string> {
           return { content: [{ type: 'text', text: `Inserted content under "${heading}" in ${args?.file_path}` }] };
       }
       if (name === 'obsidian_append_daily_log') {
-          const vp = getVaultPath(args?.vault_path as string);
+          const vp = getVaultPath();
           const heading = String(args?.heading);
           const content = String(args?.content);
 
@@ -912,7 +919,7 @@ async function readStdin(): Promise<string> {
           return { content: [{ type: 'text', text: `Appended to daily note under "${heading}"` }] };
       }
       if (name === 'obsidian_replace_in_note') {
-          const vp = getVaultPath(args?.vault_path as string);
+          const vp = getVaultPath();
           const filePath = getSafeFilePath(vp, String(args?.file_path));
           const fileContent = await fs.readFile(filePath, 'utf-8');
           const updated = replaceInNote(fileContent, String(args?.old_text), String(args?.new_text ?? ''));
@@ -920,7 +927,7 @@ async function readStdin(): Promise<string> {
           return { content: [{ type: 'text', text: `Replaced text in ${args?.file_path}` }] };
       }
       if (name === 'obsidian_get_broken_links') {
-          const vp = getVaultPath(args?.vault_path as string);
+          const vp = getVaultPath();
           const pattern = listNotesPattern(args?.subfolder ? String(args.subfolder) : undefined);
           const files = await glob(pattern, { cwd: vp, follow: true });
           const allFiles = await glob('**/*.md', { cwd: vp, follow: true });

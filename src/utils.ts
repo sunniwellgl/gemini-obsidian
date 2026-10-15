@@ -11,10 +11,43 @@ import matter from 'gray-matter';
 export function getSafeFilePath(vaultPath: string, userInputPath: string): string {
   const resolvedVault = path.resolve(vaultPath);
   const resolvedTarget = path.resolve(resolvedVault, userInputPath);
-  if (!resolvedTarget.startsWith(resolvedVault + path.sep) && resolvedTarget !== resolvedVault) {
+  const rel = path.relative(resolvedVault, resolvedTarget);
+  if (rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel)) {
     throw new Error("Security Error: Path traversal detected.");
   }
   return resolvedTarget;
+}
+
+/**
+ * True when `dir` is an absolute path to an existing directory that
+ * contains an `.obsidian` folder, i.e. a real Obsidian vault.
+ *
+ * Used to keep the vault root from being pointed at arbitrary
+ * directories such as $HOME or /etc.
+ */
+export async function isObsidianVault(dir: string): Promise<boolean> {
+  if (!dir || !path.isAbsolute(dir)) return false;
+  try {
+    const stat = await fs.stat(path.join(dir, '.obsidian'));
+    return stat.isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validate a vault root and return it resolved. Throws unless it is an
+ * existing Obsidian vault.
+ */
+export async function validateVaultRoot(dir: string): Promise<string> {
+  if (!dir || !path.isAbsolute(dir)) {
+    throw new Error(`Vault path must be absolute: ${dir}`);
+  }
+  const resolved = path.resolve(dir);
+  if (!(await isObsidianVault(resolved))) {
+    throw new Error(`Not an Obsidian vault (no .obsidian folder): ${resolved}`);
+  }
+  return resolved;
 }
 
 /**
@@ -96,7 +129,12 @@ export function insertAtHeading(
 
 /** Build the glob pattern for obsidian_list_notes. Recurses into subfolder when given. */
 export function listNotesPattern(subfolder?: string): string {
-  return subfolder ? path.join(subfolder, '**', '*.md') : '**/*.md';
+  if (!subfolder) return '**/*.md';
+  const normalized = path.normalize(subfolder);
+  if (path.isAbsolute(normalized) || normalized === '..' || normalized.startsWith('..' + path.sep)) {
+    throw new Error("Security Error: Path traversal detected.");
+  }
+  return path.join(normalized, '**', '*.md');
 }
 
 /** Replace the first occurrence of oldText with newText. Throws if not found. */
@@ -261,7 +299,20 @@ export async function createVault(
     throw new Error(`Vault path must be absolute: ${vaultPath}`);
   }
   const resolvedPath = path.resolve(vaultPath);
-  await fs.mkdir(resolvedPath, { recursive: true });
+
+  // Refuse to turn an existing, non-empty directory (e.g. $HOME) into a
+  // vault. Existing Obsidian vaults are allowed.
+  let entries: string[] | null = null;
+  try {
+    entries = await fs.readdir(resolvedPath);
+  } catch (e: any) {
+    if (e?.code !== 'ENOENT') throw e;
+  }
+  if (entries && entries.length > 0 && !(await isObsidianVault(resolvedPath))) {
+    throw new Error(`Refusing to create a vault in a non-empty directory: ${resolvedPath}`);
+  }
+
+  await fs.mkdir(path.join(resolvedPath, '.obsidian'), { recursive: true });
 
   if (options?.register) {
     const regResult = await registerVaultInConfig(resolvedPath, options?.customConfigPath);
