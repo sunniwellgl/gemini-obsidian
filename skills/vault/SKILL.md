@@ -20,7 +20,7 @@ If the user asks to create or initialize a new vault (e.g. `/vault create <path>
 ### With Argument
 
 If the user provides a path to an existing vault after `/vault`:
-- Call `obsidian_set_vault` with the provided path
+- Call `obsidian_set_vault` with the provided path (it must be an existing Obsidian vault containing a `.obsidian` folder)
 
 ### Without Argument
 

@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.1] - 2026-10-15
+
+### Security
+
+- Fix arbitrary file read and write outside the vault ([GHSA-74mh-44f5-p46j](https://github.com/thoreinstein/gemini-obsidian/security/advisories/GHSA-74mh-44f5-p46j)). The vault root could be relocated by tool arguments, which made the `getSafeFilePath` check meaningless. Reported by Artur Chlebicki ([@Artur12555](https://github.com/Artur12555)).
+  - Removed the per-call `vault_path` argument from every MCP tool. Hooks no longer read it from tool input.
+  - `obsidian_set_vault` only accepts an existing Obsidian vault (a folder containing `.obsidian`).
+  - `obsidian_create_vault` refuses non-empty directories that are not already vaults and now creates the `.obsidian` folder.
+  - A saved vault path that is not an Obsidian vault is ignored at startup, which clears configs poisoned under earlier versions.
+  - CLI `--vault_path` must point at an Obsidian vault.
+  - `subfolder` arguments can no longer escape the vault.
+  - `getSafeFilePath` now uses a `path.relative` check.
+
+### Changed
+
+- **Breaking:** tools no longer accept `vault_path`. Set the vault once with `obsidian_set_vault` or `OBSIDIAN_VAULT_PATH`.
+
 ## [1.8.0] - 2026-10-14
 
 ### Added

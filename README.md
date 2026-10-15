@@ -45,7 +45,9 @@ export OBSIDIAN_VAULT_PATH="/Users/you/Documents/MyVault"
 ```
 
 **Option 2: Runtime Configuration**
-The first time you use a tool, gemini will ask to set `vault_path`. It will be cached in `~/.gemini-obsidian.config.json`.
+The first time you use a tool, gemini will ask for your vault path and call `obsidian_set_vault`. The path must be an existing Obsidian vault (a folder containing `.obsidian`). It is cached in `~/.gemini-obsidian.config.json`.
+
+Tools always operate on the configured vault. They do not accept a per-call vault path.
 
 ## Data Storage & Troubleshooting
 
@@ -113,7 +115,7 @@ The following tools are exposed to the Gemini agent:
 - `obsidian_get_broken_links`: Find wikilinks that point to missing notes.
 
 ### Management & Journaling
-- `obsidian_set_vault`: Set the default Obsidian vault path for this session.
+- `obsidian_set_vault`: Set the default Obsidian vault path. Must be an existing Obsidian vault; saved for future sessions.
 - `obsidian_create_vault`: Create a new Obsidian vault directory on disk, with optional desktop app registration.
 - `obsidian_create_note`: Create a new markdown note.
 - `obsidian_append_note`: Append text to the end of a note.

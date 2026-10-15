@@ -149,6 +149,14 @@ describe('getSafeFilePath', () => {
     const result = getSafeFilePath(vault, inside);
     expect(result).toBe(inside);
   });
+
+  it('allows notes whose names start with dots', () => {
+    expect(getSafeFilePath(vault, '..notes.md')).toBe(path.resolve(vault, '..notes.md'));
+  });
+
+  it('confines paths when the vault is the filesystem root', () => {
+    expect(getSafeFilePath('/', 'etc/hosts')).toBe(path.resolve('/', 'etc/hosts'));
+  });
 });
 
 describe('listNotesPattern', () => {
@@ -158,6 +166,12 @@ describe('listNotesPattern', () => {
 
   it('uses recursive subfolder glob when subfolder is provided', () => {
     expect(listNotesPattern('projects/app')).toBe(path.join('projects/app', '**', '*.md'));
+  });
+
+  it('rejects subfolders that escape the vault', () => {
+    expect(() => listNotesPattern('../..')).toThrow('Path traversal detected');
+    expect(() => listNotesPattern('notes/../../x')).toThrow('Path traversal detected');
+    expect(() => listNotesPattern('/etc')).toThrow('Path traversal detected');
   });
 });
 

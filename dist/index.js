@@ -2237,8 +2237,8 @@ var require_resolve = __commonJS({
       }
       return count;
     }
-    function getFullPath(resolver, id = "", normalize) {
-      if (normalize !== false)
+    function getFullPath(resolver, id = "", normalize2) {
+      if (normalize2 !== false)
         id = normalizeId(id);
       const p = resolver.parse(id);
       return _getFullPath(resolver, p);
@@ -3833,7 +3833,7 @@ var require_fast_uri = __commonJS({
       }
       return decodedScheme;
     }
-    function normalize(uri, options2) {
+    function normalize2(uri, options2) {
       if (typeof uri === "string") {
         uri = /** @type {T} */
         normalizeString(uri, options2);
@@ -3876,49 +3876,49 @@ var require_fast_uri = __commonJS({
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    function resolveComponent(base, relative2, options2, skipNormalization) {
+    function resolveComponent(base, relative3, options2, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
         base = parse5(serialize(base, options2), options2);
-        relative2 = parse5(serialize(relative2, options2), options2);
+        relative3 = parse5(serialize(relative3, options2), options2);
       }
       options2 = options2 || {};
-      if (!options2.tolerant && relative2.scheme) {
-        target.scheme = relative2.scheme;
-        target.userinfo = relative2.userinfo;
-        target.host = relative2.host;
-        target.port = relative2.port;
-        target.path = removeDotSegments(relative2.path || "");
-        target.query = relative2.query;
+      if (!options2.tolerant && relative3.scheme) {
+        target.scheme = relative3.scheme;
+        target.userinfo = relative3.userinfo;
+        target.host = relative3.host;
+        target.port = relative3.port;
+        target.path = removeDotSegments(relative3.path || "");
+        target.query = relative3.query;
       } else {
-        if (relative2.userinfo !== void 0 || relative2.host !== void 0 || relative2.port !== void 0) {
-          target.userinfo = relative2.userinfo;
-          target.host = relative2.host;
-          target.port = relative2.port;
-          target.path = removeDotSegments(relative2.path || "");
-          target.query = relative2.query;
+        if (relative3.userinfo !== void 0 || relative3.host !== void 0 || relative3.port !== void 0) {
+          target.userinfo = relative3.userinfo;
+          target.host = relative3.host;
+          target.port = relative3.port;
+          target.path = removeDotSegments(relative3.path || "");
+          target.query = relative3.query;
         } else {
-          if (!relative2.path) {
+          if (!relative3.path) {
             target.path = base.path;
-            if (relative2.query !== void 0) {
-              target.query = relative2.query;
+            if (relative3.query !== void 0) {
+              target.query = relative3.query;
             } else {
               target.query = base.query;
             }
           } else {
-            if (relative2.path[0] === "/") {
-              target.path = removeDotSegments(relative2.path);
+            if (relative3.path[0] === "/") {
+              target.path = removeDotSegments(relative3.path);
             } else {
               if ((base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0) && !base.path) {
-                target.path = "/" + relative2.path;
+                target.path = "/" + relative3.path;
               } else if (!base.path) {
-                target.path = relative2.path;
+                target.path = relative3.path;
               } else {
-                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative2.path;
+                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative3.path;
               }
               target.path = removeDotSegments(target.path);
             }
-            target.query = relative2.query;
+            target.query = relative3.query;
           }
           target.userinfo = base.userinfo;
           target.host = base.host;
@@ -3926,7 +3926,7 @@ var require_fast_uri = __commonJS({
         }
         target.scheme = base.scheme;
       }
-      target.fragment = relative2.fragment;
+      target.fragment = relative3.fragment;
       return target;
     }
     function equal(uriA, uriB, options2) {
@@ -4211,7 +4211,7 @@ var require_fast_uri = __commonJS({
     }
     var fastUri = {
       SCHEMES,
-      normalize,
+      normalize: normalize2,
       resolve: resolve2,
       resolveComponent,
       equal,
@@ -55700,7 +55700,7 @@ Pipeline {
       /** @type {'none'} */
       "none"
     ),
-    normalize = false,
+    normalize: normalize2 = false,
     quantize = false,
     precision = (
       /** @type {'binary'} */
@@ -55721,7 +55721,7 @@ Pipeline {
     } else {
       throw Error(`Pooling method '${pooling}' not supported.`);
     }
-    if (normalize) {
+    if (normalize2) {
       result = result.normalize(2, -1);
     }
     if (quantize) {
@@ -56928,10 +56928,30 @@ var import_gray_matter = __toESM(require_gray_matter());
 function getSafeFilePath(vaultPath, userInputPath) {
   const resolvedVault = path3.resolve(vaultPath);
   const resolvedTarget = path3.resolve(resolvedVault, userInputPath);
-  if (!resolvedTarget.startsWith(resolvedVault + path3.sep) && resolvedTarget !== resolvedVault) {
+  const rel = path3.relative(resolvedVault, resolvedTarget);
+  if (rel === ".." || rel.startsWith(".." + path3.sep) || path3.isAbsolute(rel)) {
     throw new Error("Security Error: Path traversal detected.");
   }
   return resolvedTarget;
+}
+async function isObsidianVault(dir) {
+  if (!dir || !path3.isAbsolute(dir)) return false;
+  try {
+    const stat3 = await fs4.stat(path3.join(dir, ".obsidian"));
+    return stat3.isDirectory();
+  } catch {
+    return false;
+  }
+}
+async function validateVaultRoot(dir) {
+  if (!dir || !path3.isAbsolute(dir)) {
+    throw new Error(`Vault path must be absolute: ${dir}`);
+  }
+  const resolved = path3.resolve(dir);
+  if (!await isObsidianVault(resolved)) {
+    throw new Error(`Not an Obsidian vault (no .obsidian folder): ${resolved}`);
+  }
+  return resolved;
 }
 function extractWikilinks(content) {
   const regex = /\[\[(.*?)(?:\|.*?)?\]\]/g;
@@ -56975,7 +56995,12 @@ function insertAtHeading(fileContent, heading, content, position, range2) {
 ${content}`;
 }
 function listNotesPattern(subfolder) {
-  return subfolder ? path3.join(subfolder, "**", "*.md") : "**/*.md";
+  if (!subfolder) return "**/*.md";
+  const normalized = path3.normalize(subfolder);
+  if (path3.isAbsolute(normalized) || normalized === ".." || normalized.startsWith(".." + path3.sep)) {
+    throw new Error("Security Error: Path traversal detected.");
+  }
+  return path3.join(normalized, "**", "*.md");
 }
 function replaceInNote(content, oldText, newText) {
   const idx = content.indexOf(oldText);
@@ -57082,7 +57107,16 @@ async function createVault(vaultPath, options2) {
     throw new Error(`Vault path must be absolute: ${vaultPath}`);
   }
   const resolvedPath = path3.resolve(vaultPath);
-  await fs4.mkdir(resolvedPath, { recursive: true });
+  let entries = null;
+  try {
+    entries = await fs4.readdir(resolvedPath);
+  } catch (e) {
+    if (e?.code !== "ENOENT") throw e;
+  }
+  if (entries && entries.length > 0 && !await isObsidianVault(resolvedPath)) {
+    throw new Error(`Refusing to create a vault in a non-empty directory: ${resolvedPath}`);
+  }
+  await fs4.mkdir(path3.join(resolvedPath, ".obsidian"), { recursive: true });
   if (options2?.register) {
     const regResult = await registerVaultInConfig(resolvedPath, options2?.customConfigPath);
     return {
@@ -57441,12 +57475,17 @@ async function loadConfig2() {
     return null;
   }
 }
-function getVaultPath(providedPath) {
-  const p = providedPath || VAULT_PATH;
-  if (!p) {
-    throw new McpError(ErrorCode.InvalidParams, "Vault path is not set. Use obsidian_set_vault or provide 'vault_path' argument.");
+function getVaultPath() {
+  if (!VAULT_PATH) {
+    throw new McpError(ErrorCode.InvalidParams, "Vault path is not set. Use obsidian_set_vault or set OBSIDIAN_VAULT_PATH.");
   }
-  return p;
+  return VAULT_PATH;
+}
+async function getCliVaultPath(override) {
+  if (override !== void 0 && override !== true) {
+    return validateVaultRoot(String(override));
+  }
+  return getVaultPath();
 }
 async function readStdin() {
   return new Promise((resolve2, reject) => {
@@ -57470,7 +57509,12 @@ async function readStdin() {
 }
 (async () => {
   if (!VAULT_PATH) {
-    VAULT_PATH = await loadConfig2();
+    const saved = await loadConfig2();
+    if (saved && await isObsidianVault(saved)) {
+      VAULT_PATH = saved;
+    } else if (saved) {
+      console.error(`[gemini-obsidian] Ignoring saved vault path that is not an Obsidian vault: ${saved}. Run obsidian_set_vault to set it again.`);
+    }
   }
   const args = process.argv.slice(2);
   const knownTools = ["obsidian_list_notes", "obsidian_read_note", "obsidian_search_notes", "obsidian_rag_index", "obsidian_rag_query", "obsidian_set_vault", "obsidian_create_vault", "obsidian_create_note", "obsidian_append_note", "obsidian_get_daily_note", "obsidian_get_backlinks", "obsidian_get_links", "obsidian_move_note", "obsidian_update_frontmatter", "obsidian_append_daily_log", "obsidian_replace_section", "obsidian_insert_at_heading", "obsidian_replace_in_note", "obsidian_get_broken_links", "validate_frontmatter"];
@@ -57508,30 +57552,30 @@ async function readStdin() {
         }
         result = JSON.stringify(res, null, 2);
       } else if (toolName === "obsidian_list_notes") {
-        const vp = getVaultPath(parsedArgs.vault_path);
+        const vp = await getCliVaultPath(parsedArgs.vault_path);
         const pattern = listNotesPattern(parsedArgs.subfolder ? String(parsedArgs.subfolder) : void 0);
         const files = await Ze(pattern, { cwd: vp, follow: true });
         result = JSON.stringify(files.slice(0, 100), null, 2) + (files.length > 100 ? `
 ...and ${files.length - 100} more.` : "");
       } else if (toolName === "obsidian_read_note") {
-        const vp = getVaultPath(parsedArgs.vault_path);
+        const vp = await getCliVaultPath(parsedArgs.vault_path);
         const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
         result = await fs6.readFile(filePath, "utf-8");
       } else if (toolName === "obsidian_create_note") {
-        const vp = getVaultPath(parsedArgs.vault_path);
+        const vp = await getCliVaultPath(parsedArgs.vault_path);
         const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
         const content = String(parsedArgs.content || "");
         await fs6.mkdir(path5.dirname(filePath), { recursive: true });
         await fs6.writeFile(filePath, content, "utf-8");
         result = `Created note: ${parsedArgs.file_path}`;
       } else if (toolName === "obsidian_append_note") {
-        const vp = getVaultPath(parsedArgs.vault_path);
+        const vp = await getCliVaultPath(parsedArgs.vault_path);
         const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
         const content = String(parsedArgs.content || "");
         await fs6.appendFile(filePath, "\n" + content, "utf-8");
         result = `Appended to note: ${parsedArgs.file_path}`;
       } else if (toolName === "obsidian_get_daily_note") {
-        const vp = getVaultPath(parsedArgs.vault_path);
+        const vp = await getCliVaultPath(parsedArgs.vault_path);
         const dateStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
         const dailyFolder = await fs6.stat(path5.join(vp, "Daily Notes")).catch(() => null) ? "Daily Notes" : "";
         const fileName = `${dateStr}.md`;
@@ -57547,7 +57591,7 @@ async function readStdin() {
           result = content;
         }
       } else if (toolName === "obsidian_search_notes") {
-        const vp = getVaultPath(parsedArgs.vault_path);
+        const vp = await getCliVaultPath(parsedArgs.vault_path);
         const query = String(parsedArgs.query).toLowerCase();
         const files = await Ze("**/*.md", { cwd: vp, follow: true });
         const matches = [];
@@ -57572,13 +57616,13 @@ async function readStdin() {
             process.exit(0);
           }
           const input = JSON.parse(inputStr);
-          vp = getVaultPath(input.tool_input?.vault_path || VAULT_PATH);
+          vp = getVaultPath();
           fp = input.tool_input?.file_path;
           if (!fp) {
             process.exit(0);
           }
         } else {
-          vp = getVaultPath(parsedArgs.vault_path);
+          vp = await getCliVaultPath(parsedArgs.vault_path);
           fp = parsedArgs.file_path ? String(parsedArgs.file_path) : null;
         }
         const force = parsedArgs.force_reindex === true || parsedArgs.force === true;
@@ -57596,7 +57640,7 @@ async function readStdin() {
         result = res.map((r) => `File: ${r.path}
 Content: ${r.text}`).join("\n---\n");
       } else if (toolName === "obsidian_get_backlinks") {
-        const vp = getVaultPath(parsedArgs.vault_path);
+        const vp = await getCliVaultPath(parsedArgs.vault_path);
         const target = String(parsedArgs.file_name).replace(/\.md$/i, "");
         const linkRegex = new RegExp(`\\[\\[${target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([\\]\\|#])`, "i");
         const files = await Ze("**/*.md", { cwd: vp, follow: true });
@@ -57621,19 +57665,19 @@ Content: ${r.text}`).join("\n---\n");
 ` + backlinks.map((f) => `- ${f}`).join("\n");
         }
       } else if (toolName === "obsidian_get_links") {
-        const vp = getVaultPath(parsedArgs.vault_path);
+        const vp = await getCliVaultPath(parsedArgs.vault_path);
         const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
         const content = await fs6.readFile(filePath, "utf-8");
         result = JSON.stringify(extractWikilinks(content), null, 2);
       } else if (toolName === "obsidian_move_note") {
-        const vp = getVaultPath(parsedArgs.vault_path);
+        const vp = await getCliVaultPath(parsedArgs.vault_path);
         const source = getSafeFilePath(vp, String(parsedArgs.source_path));
         const dest = getSafeFilePath(vp, String(parsedArgs.dest_path));
         await fs6.mkdir(path5.dirname(dest), { recursive: true });
         await fs6.rename(source, dest);
         result = `Moved ${parsedArgs.source_path} to ${parsedArgs.dest_path}`;
       } else if (toolName === "obsidian_update_frontmatter") {
-        const vp = getVaultPath(parsedArgs.vault_path);
+        const vp = await getCliVaultPath(parsedArgs.vault_path);
         const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
         const fileContent = await fs6.readFile(filePath, "utf-8");
         let updateArg;
@@ -57646,7 +57690,7 @@ Content: ${r.text}`).join("\n---\n");
         await fs6.writeFile(filePath, applyFrontmatterUpdate(fileContent, updateArg), "utf-8");
         result = `Updated frontmatter in ${parsedArgs.file_path}`;
       } else if (toolName === "obsidian_replace_section") {
-        const vp = getVaultPath(parsedArgs.vault_path);
+        const vp = await getCliVaultPath(parsedArgs.vault_path);
         const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
         const heading = String(parsedArgs.heading);
         const content = String(parsedArgs.content);
@@ -57656,7 +57700,7 @@ Content: ${r.text}`).join("\n---\n");
         await fs6.writeFile(filePath, replaceSection(fileContent, range2, content), "utf-8");
         result = `Replaced section "${heading}" in ${parsedArgs.file_path}`;
       } else if (toolName === "obsidian_insert_at_heading") {
-        const vp = getVaultPath(parsedArgs.vault_path);
+        const vp = await getCliVaultPath(parsedArgs.vault_path);
         const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
         const heading = String(parsedArgs.heading);
         const content = String(parsedArgs.content);
@@ -57666,7 +57710,7 @@ Content: ${r.text}`).join("\n---\n");
         await fs6.writeFile(filePath, insertAtHeading(fileContent, heading, content, position, range2), "utf-8");
         result = `Inserted content under "${heading}" in ${parsedArgs.file_path}`;
       } else if (toolName === "obsidian_append_daily_log") {
-        const vp = getVaultPath(parsedArgs.vault_path);
+        const vp = await getCliVaultPath(parsedArgs.vault_path);
         const heading = String(parsedArgs.heading);
         const content = String(parsedArgs.content);
         const dateStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
@@ -57696,14 +57740,14 @@ Content: ${r.text}`).join("\n---\n");
         await fs6.writeFile(filePath, fileContent, "utf-8");
         result = `Appended to daily note under "${heading}"`;
       } else if (toolName === "obsidian_replace_in_note") {
-        const vp = getVaultPath(parsedArgs.vault_path);
+        const vp = await getCliVaultPath(parsedArgs.vault_path);
         const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
         const fileContent = await fs6.readFile(filePath, "utf-8");
         const updated = replaceInNote(fileContent, String(parsedArgs.old_text), String(parsedArgs.new_text ?? ""));
         await fs6.writeFile(filePath, updated, "utf-8");
         result = `Replaced text in ${parsedArgs.file_path}`;
       } else if (toolName === "obsidian_get_broken_links") {
-        const vp = getVaultPath(parsedArgs.vault_path);
+        const vp = await getCliVaultPath(parsedArgs.vault_path);
         const pattern = listNotesPattern(parsedArgs.subfolder ? String(parsedArgs.subfolder) : void 0);
         const files = await Ze(pattern, { cwd: vp, follow: true });
         const allFiles = await Ze("**/*.md", { cwd: vp, follow: true });
@@ -57748,7 +57792,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
         }
         let vp;
         try {
-          vp = getVaultPath(input.tool_input?.vault_path || void 0);
+          vp = getVaultPath();
         } catch {
           process.exit(0);
         }
@@ -57807,7 +57851,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
       tools: [
         {
           name: "obsidian_set_vault",
-          description: "Set the default Obsidian vault path for this session.",
+          description: "Set the default Obsidian vault path. The path must be an existing Obsidian vault (contains a .obsidian folder). It is saved to ~/.gemini-obsidian.config.json for future sessions.",
           inputSchema: {
             type: "object",
             properties: {
@@ -57835,8 +57879,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
           inputSchema: {
             type: "object",
             properties: {
-              subfolder: { type: "string", description: "Optional subfolder to list" },
-              vault_path: { type: "string", description: "Optional vault path override" }
+              subfolder: { type: "string", description: "Optional subfolder to list" }
             }
           }
         },
@@ -57846,8 +57889,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
           inputSchema: {
             type: "object",
             properties: {
-              file_path: { type: "string", description: "Relative path to the note" },
-              vault_path: { type: "string", description: "Optional vault path override" }
+              file_path: { type: "string", description: "Relative path to the note" }
             },
             required: ["file_path"]
           }
@@ -57859,8 +57901,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
             type: "object",
             properties: {
               file_path: { type: "string", description: 'Relative path for the new note (e.g. "Ideas/MyIdea.md")' },
-              content: { type: "string", description: "Initial content of the note" },
-              vault_path: { type: "string", description: "Optional vault path override" }
+              content: { type: "string", description: "Initial content of the note" }
             },
             required: ["file_path", "content"]
           }
@@ -57872,8 +57913,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
             type: "object",
             properties: {
               file_path: { type: "string", description: "Relative path to the note" },
-              content: { type: "string", description: "Text to append" },
-              vault_path: { type: "string", description: "Optional vault path override" }
+              content: { type: "string", description: "Text to append" }
             },
             required: ["file_path", "content"]
           }
@@ -57883,9 +57923,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
           description: "Get (or create) today's daily note.",
           inputSchema: {
             type: "object",
-            properties: {
-              vault_path: { type: "string", description: "Optional vault path override" }
-            }
+            properties: {}
           }
         },
         {
@@ -57894,8 +57932,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
           inputSchema: {
             type: "object",
             properties: {
-              query: { type: "string", description: "Text to search for" },
-              vault_path: { type: "string", description: "Optional vault path override" }
+              query: { type: "string", description: "Text to search for" }
             },
             required: ["query"]
           }
@@ -57906,7 +57943,6 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
           inputSchema: {
             type: "object",
             properties: {
-              vault_path: { type: "string", description: "Optional vault path override" },
               file_path: { type: "string", description: "Relative path to a specific note to re-index" },
               force_reindex: { type: "boolean", description: "Force full re-index, ignoring cached file hashes (default: false)" }
             }
@@ -57930,8 +57966,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
           inputSchema: {
             type: "object",
             properties: {
-              file_name: { type: "string", description: "Name of the note to find backlinks for (without extension)" },
-              vault_path: { type: "string", description: "Optional vault path override" }
+              file_name: { type: "string", description: "Name of the note to find backlinks for (without extension)" }
             },
             required: ["file_name"]
           }
@@ -57942,8 +57977,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
           inputSchema: {
             type: "object",
             properties: {
-              file_path: { type: "string", description: "Relative path to the note" },
-              vault_path: { type: "string", description: "Optional vault path override" }
+              file_path: { type: "string", description: "Relative path to the note" }
             },
             required: ["file_path"]
           }
@@ -57955,8 +57989,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
             type: "object",
             properties: {
               source_path: { type: "string", description: "Current relative path of the note" },
-              dest_path: { type: "string", description: 'New relative path for the note (e.g. "Archive/OldNote.md")' },
-              vault_path: { type: "string", description: "Optional vault path override" }
+              dest_path: { type: "string", description: 'New relative path for the note (e.g. "Archive/OldNote.md")' }
             },
             required: ["source_path", "dest_path"]
           }
@@ -57970,8 +58003,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
               file_path: { type: "string", description: "Relative path to the note" },
               key: { type: "string", description: "Frontmatter key to update (single-key mode)" },
               value: { type: "string", description: "New value for the key (JSON stringified if array/object; single-key mode)" },
-              updates: { type: "object", description: "JSON object of key/value pairs to set at once (batch mode, alternative to key+value)" },
-              vault_path: { type: "string", description: "Optional vault path override" }
+              updates: { type: "object", description: "JSON object of key/value pairs to set at once (batch mode, alternative to key+value)" }
             },
             required: ["file_path"]
           }
@@ -57983,8 +58015,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
             type: "object",
             properties: {
               heading: { type: "string", description: 'Heading to append under (e.g., "Work Log", "Ideas")' },
-              content: { type: "string", description: "Text to append" },
-              vault_path: { type: "string", description: "Optional vault path override" }
+              content: { type: "string", description: "Text to append" }
             },
             required: ["heading", "content"]
           }
@@ -57997,8 +58028,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
             properties: {
               file_path: { type: "string", description: "Relative path to the note" },
               heading: { type: "string", description: 'Heading text to find (e.g. "Status")' },
-              content: { type: "string", description: "New section body (replaces everything between heading and next same/higher-level heading)" },
-              vault_path: { type: "string", description: "Optional vault path override" }
+              content: { type: "string", description: "New section body (replaces everything between heading and next same/higher-level heading)" }
             },
             required: ["file_path", "heading", "content"]
           }
@@ -58012,8 +58042,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
               file_path: { type: "string", description: "Relative path to the note" },
               heading: { type: "string", description: 'Heading text to find (e.g. "Notes")' },
               content: { type: "string", description: "Text to insert" },
-              position: { type: "string", enum: ["beginning", "end"], description: "Insert at beginning or end of section (default: end)" },
-              vault_path: { type: "string", description: "Optional vault path override" }
+              position: { type: "string", enum: ["beginning", "end"], description: "Insert at beginning or end of section (default: end)" }
             },
             required: ["file_path", "heading", "content"]
           }
@@ -58026,8 +58055,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
             properties: {
               file_path: { type: "string", description: "Relative path to the note" },
               old_text: { type: "string", description: "Exact text to find and replace" },
-              new_text: { type: "string", description: "Replacement text (default: empty string)" },
-              vault_path: { type: "string", description: "Optional vault path override" }
+              new_text: { type: "string", description: "Replacement text (default: empty string)" }
             },
             required: ["file_path", "old_text"]
           }
@@ -58038,8 +58066,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
           inputSchema: {
             type: "object",
             properties: {
-              subfolder: { type: "string", description: "Limit scan to this subfolder (optional; default: entire vault)" },
-              vault_path: { type: "string", description: "Optional vault path override" }
+              subfolder: { type: "string", description: "Limit scan to this subfolder (optional; default: entire vault)" }
             }
           }
         }
@@ -58050,7 +58077,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
     const { name: name2, arguments: args2 } = request.params;
     try {
       if (name2 === "obsidian_set_vault") {
-        VAULT_PATH = String(args2?.path);
+        VAULT_PATH = await validateVaultRoot(String(args2?.path ?? ""));
         await saveConfig(VAULT_PATH);
         return { content: [{ type: "text", text: `Vault path set to: ${VAULT_PATH}` }] };
       }
@@ -58087,20 +58114,20 @@ Obsidian desktop registered: false (desktop app registration is opt-in; pass reg
         };
       }
       if (name2 === "obsidian_list_notes") {
-        const vp = getVaultPath(args2?.vault_path);
+        const vp = getVaultPath();
         const pattern = listNotesPattern(args2?.subfolder ? String(args2.subfolder) : void 0);
         const files = await Ze(pattern, { cwd: vp, follow: true });
         return { content: [{ type: "text", text: JSON.stringify(files.slice(0, 100), null, 2) + (files.length > 100 ? `
 ...and ${files.length - 100} more.` : "") }] };
       }
       if (name2 === "obsidian_read_note") {
-        const vp = getVaultPath(args2?.vault_path);
+        const vp = getVaultPath();
         const filePath = getSafeFilePath(vp, String(args2?.file_path));
         const content = await fs6.readFile(filePath, "utf-8");
         return { content: [{ type: "text", text: content }] };
       }
       if (name2 === "obsidian_create_note") {
-        const vp = getVaultPath(args2?.vault_path);
+        const vp = getVaultPath();
         const filePath = getSafeFilePath(vp, String(args2?.file_path));
         const content = String(args2?.content || "");
         await fs6.mkdir(path5.dirname(filePath), { recursive: true });
@@ -58108,14 +58135,14 @@ Obsidian desktop registered: false (desktop app registration is opt-in; pass reg
         return { content: [{ type: "text", text: `Created note: ${args2?.file_path}` }] };
       }
       if (name2 === "obsidian_append_note") {
-        const vp = getVaultPath(args2?.vault_path);
+        const vp = getVaultPath();
         const filePath = getSafeFilePath(vp, String(args2?.file_path));
         const content = String(args2?.content || "");
         await fs6.appendFile(filePath, "\n" + content, "utf-8");
         return { content: [{ type: "text", text: `Appended to note: ${args2?.file_path}` }] };
       }
       if (name2 === "obsidian_get_daily_note") {
-        const vp = getVaultPath(args2?.vault_path);
+        const vp = getVaultPath();
         const dateStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
         const dailyFolder = await fs6.stat(path5.join(vp, "Daily Notes")).catch(() => null) ? "Daily Notes" : "";
         const fileName = `${dateStr}.md`;
@@ -58133,7 +58160,7 @@ Obsidian desktop registered: false (desktop app registration is opt-in; pass reg
         return { content: [{ type: "text", text: content }] };
       }
       if (name2 === "obsidian_search_notes") {
-        const vp = getVaultPath(args2?.vault_path);
+        const vp = getVaultPath();
         const query = String(args2?.query).toLowerCase();
         const files = await Ze("**/*.md", { cwd: vp, follow: true });
         const matches = [];
@@ -58152,7 +58179,7 @@ Obsidian desktop registered: false (desktop app registration is opt-in; pass reg
         return { content: [{ type: "text", text: matches.join("\n") }] };
       }
       if (name2 === "obsidian_rag_index") {
-        const vp = getVaultPath(args2?.vault_path);
+        const vp = getVaultPath();
         const fp = args2?.file_path ? String(args2.file_path) : null;
         const force = args2?.force_reindex === true;
         let result;
@@ -58177,7 +58204,7 @@ Content: ${r.text}
         return { content: [{ type: "text", text: formatted }] };
       }
       if (name2 === "obsidian_get_backlinks") {
-        const vp = getVaultPath(args2?.vault_path);
+        const vp = getVaultPath();
         const target = String(args2?.file_name).replace(/\.md$/i, "");
         const linkRegex = new RegExp(`\\[\\[${target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([\\]\\|#])`, "i");
         const files = await Ze("**/*.md", { cwd: vp, follow: true });
@@ -58202,13 +58229,13 @@ Content: ${r.text}
 ` + backlinks.map((f) => `- ${f}`).join("\n") }] };
       }
       if (name2 === "obsidian_get_links") {
-        const vp = getVaultPath(args2?.vault_path);
+        const vp = getVaultPath();
         const filePath = getSafeFilePath(vp, String(args2?.file_path));
         const content = await fs6.readFile(filePath, "utf-8");
         return { content: [{ type: "text", text: JSON.stringify(extractWikilinks(content), null, 2) }] };
       }
       if (name2 === "obsidian_move_note") {
-        const vp = getVaultPath(args2?.vault_path);
+        const vp = getVaultPath();
         const source = getSafeFilePath(vp, String(args2?.source_path));
         const dest = getSafeFilePath(vp, String(args2?.dest_path));
         await fs6.mkdir(path5.dirname(dest), { recursive: true });
@@ -58216,7 +58243,7 @@ Content: ${r.text}
         return { content: [{ type: "text", text: `Moved ${args2?.source_path} to ${args2?.dest_path}` }] };
       }
       if (name2 === "obsidian_update_frontmatter") {
-        const vp = getVaultPath(args2?.vault_path);
+        const vp = getVaultPath();
         const filePath = getSafeFilePath(vp, String(args2?.file_path));
         const fileContent = await fs6.readFile(filePath, "utf-8");
         const updateArg = args2?.updates && typeof args2.updates === "object" ? { updates: args2.updates } : { key: String(args2?.key), value: String(args2?.value) };
@@ -58224,7 +58251,7 @@ Content: ${r.text}
         return { content: [{ type: "text", text: `Updated frontmatter in ${args2?.file_path}` }] };
       }
       if (name2 === "obsidian_replace_section") {
-        const vp = getVaultPath(args2?.vault_path);
+        const vp = getVaultPath();
         const filePath = getSafeFilePath(vp, String(args2?.file_path));
         const heading = String(args2?.heading);
         const content = String(args2?.content);
@@ -58235,7 +58262,7 @@ Content: ${r.text}
         return { content: [{ type: "text", text: `Replaced section "${heading}" in ${args2?.file_path}` }] };
       }
       if (name2 === "obsidian_insert_at_heading") {
-        const vp = getVaultPath(args2?.vault_path);
+        const vp = getVaultPath();
         const filePath = getSafeFilePath(vp, String(args2?.file_path));
         const heading = String(args2?.heading);
         const content = String(args2?.content);
@@ -58246,7 +58273,7 @@ Content: ${r.text}
         return { content: [{ type: "text", text: `Inserted content under "${heading}" in ${args2?.file_path}` }] };
       }
       if (name2 === "obsidian_append_daily_log") {
-        const vp = getVaultPath(args2?.vault_path);
+        const vp = getVaultPath();
         const heading = String(args2?.heading);
         const content = String(args2?.content);
         const dateStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
@@ -58277,7 +58304,7 @@ Content: ${r.text}
         return { content: [{ type: "text", text: `Appended to daily note under "${heading}"` }] };
       }
       if (name2 === "obsidian_replace_in_note") {
-        const vp = getVaultPath(args2?.vault_path);
+        const vp = getVaultPath();
         const filePath = getSafeFilePath(vp, String(args2?.file_path));
         const fileContent = await fs6.readFile(filePath, "utf-8");
         const updated = replaceInNote(fileContent, String(args2?.old_text), String(args2?.new_text ?? ""));
@@ -58285,7 +58312,7 @@ Content: ${r.text}
         return { content: [{ type: "text", text: `Replaced text in ${args2?.file_path}` }] };
       }
       if (name2 === "obsidian_get_broken_links") {
-        const vp = getVaultPath(args2?.vault_path);
+        const vp = getVaultPath();
         const pattern = listNotesPattern(args2?.subfolder ? String(args2.subfolder) : void 0);
         const files = await Ze(pattern, { cwd: vp, follow: true });
         const allFiles = await Ze("**/*.md", { cwd: vp, follow: true });
