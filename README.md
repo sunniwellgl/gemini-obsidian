@@ -94,6 +94,7 @@ The extension comes with pre-configured slash commands for common workflows:
 | Command | Description |
 | :--- | :--- |
 | `/obsidian:daily` | Retrieve today's daily note, summarize tasks, and ask for updates. |
+| `/obsidian:recap` | Harvest cross-workspace sessions and record into today's daily note using custom templates. |
 | `/obsidian:ask` | Ask a question to your vault using RAG (e.g., `/obsidian:ask "What did I learn about React?"`). |
 | `/obsidian:search` | Fuzzy search for files by name or content. |
 | `/obsidian:index` | Trigger a manual re-index of the vault for semantic search. |
@@ -126,6 +127,9 @@ The following tools are exposed to the Gemini agent:
 - `obsidian_insert_at_heading`: Insert content at the beginning or end of a heading section.
 - `obsidian_replace_in_note`: Replace the first exact text match in a note for surgical inline edits.
 - `obsidian_get_daily_note`: Get or create today's daily note.
+- `obsidian_harvest_cli_sessions`: Scan and harvest Gemini CLI terminal sessions across all project workspaces, extracting user intents, topics, and key engineering milestones with support for custom template-driven daily logging and work recaps.
+  > **Note on Session Formats**: Scans standard JSONL session logs (`session-*.jsonl`). Legacy single-file `.json` sessions from older Gemini CLI versions are not scanned until migrated by opening them in current CLI versions.  
+  > **Privacy Notice**: This tool aggregates user prompts across all terminal sessions on the specified date into the model context. Be mindful if sensitive tokens or credentials were pasted into CLI sessions during the day.
 
 ## Skills
 

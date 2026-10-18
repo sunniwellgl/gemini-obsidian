@@ -1,0 +1,8 @@
+description = "Harvest Gemini CLI sessions across all workspaces and format into today's daily note (supports optional [date YYYY-MM-DD] and [template=...])"
+prompt = """
+Please scan and harvest Gemini CLI sessions across all workspaces using `obsidian_harvest_cli_sessions`, taking into account any optional arguments provided in '{{args}}' (such as a target date or custom template path).
+
+If a template is resolved (from user arguments, `.obsidian/daily-notes.json`, or the vault), analyze its markdown structure and semantically map the harvested activities into the template's defined sections, strictly preserving the user's headings and formatting style. If no template is configured, synthesize a clean universal activity summary grouping each active project by accomplishments, engineering milestones, and topics, and append it to today's daily note.
+
+Finally, present the formatted summary to the user for review.
+"""
