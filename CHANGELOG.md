@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.0] - 2026-10-21
+
+### Added
+
+- `obsidian_harvest_cli_sessions` tool: Read-only harvest of Gemini CLI sessions (`~/.gemini/tmp/*/chats/session-*.jsonl`) across all workspaces for a given date. Returns user prompts, topics, and engineering milestones (commits, tests, builds) per project, plus the daily note template from `template_path` or `.obsidian/daily-notes.json`. Also available as a CLI one-shot command. Thanks to @sunniwellgl.
+- `/obsidian:recap` command and a multi-session recap workflow in the journal skill.
+
+### Build & Maintenance
+
+- `@modelcontextprotocol/sdk` bumped 1.29.0 → 1.32.0.
+- Transitive lockfile bumps: `@hono/node-server` 1.19.17, `proxy-addr` 2.0.8, `js-yaml` 3.15.2.
+
 ## [1.8.1] - 2026-10-15
 
 ### Security

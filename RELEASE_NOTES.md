@@ -1,3 +1,24 @@
+# Release v1.9.0
+
+## Summary
+Adds a read-only harvester that pulls the day's Gemini CLI sessions from every workspace into one report, plus a `/obsidian:recap` command that maps it into your daily note template. Also rolls up pending dependency updates.
+
+## Features
+- **`obsidian_harvest_cli_sessions`** — scans `~/.gemini/tmp/*/chats/session-<date>*.jsonl` for a `YYYY-MM-DD` date (defaults to today), resolves workspace paths via `projects.json`, and returns per-project user prompts, topics, and milestones (git commits/pushes, test runs, builds). Internal context blocks and tool preambles are stripped. Also available as a CLI one-shot command. Thanks to @sunniwellgl.
+- **Template discovery** — returns the template from `template_path` (confined to the vault) or the `template` set in `.obsidian/daily-notes.json`, if any.
+- **`/obsidian:recap`** — harvests sessions and appends a summary to today's daily note via `obsidian_append_daily_log`, following your template's headings when one is configured.
+
+## Notes
+- The tool is read-only; writes go through `obsidian_append_daily_log`.
+- It puts every user prompt from that day's sessions into the model's context, including anything pasted into them.
+- Legacy single-file `.json` sessions from older Gemini CLI versions are not scanned.
+
+## Build & Maintenance
+- `@modelcontextprotocol/sdk` bumped 1.29.0 → 1.32.0.
+- Transitive lockfile bumps: `@hono/node-server` 1.19.17, `proxy-addr` 2.0.8, `js-yaml` 3.15.2.
+
+---
+
 # Release v1.8.0
 
 ## Summary
