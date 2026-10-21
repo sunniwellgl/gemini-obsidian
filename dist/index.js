@@ -3264,8 +3264,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path6) {
-      let input = path6;
+    function removeDotSegments(path7) {
+      let input = path7;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -3674,8 +3674,8 @@ var require_schemes = __commonJS({
       }
       if (wsComponent.resourceName) {
         const queryIndex = wsComponent.resourceName.indexOf("?");
-        const path6 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
-        wsComponent.path = path6 && path6 !== "/" ? path6 : void 0;
+        const path7 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
+        wsComponent.path = path7 && path7 !== "/" ? path7 : void 0;
         wsComponent.query = queryIndex === -1 ? void 0 : wsComponent.resourceName.slice(queryIndex + 1);
         wsComponent.resourceName = void 0;
       }
@@ -7188,12 +7188,12 @@ var require_dist = __commonJS({
         throw new Error(`Unknown format "${name2}"`);
       return f;
     };
-    function addFormats(ajv, list, fs7, exportName) {
+    function addFormats(ajv, list, fs8, exportName) {
       var _a2;
       var _b;
       (_a2 = (_b = ajv.opts.code).formats) !== null && _a2 !== void 0 ? _a2 : _b.formats = (0, codegen_1._)`require("ajv-formats/dist/formats").${exportName}`;
       for (const f of list)
-        ajv.addFormat(f, fs7[f]);
+        ajv.addFormat(f, fs8[f]);
     }
     module2.exports = exports2 = formatsPlugin;
     Object.defineProperty(exports2, "__esModule", { value: true });
@@ -8322,7 +8322,7 @@ var require_omap = __commonJS({
     var _toString = Object.prototype.toString;
     function resolveYamlOmap(data) {
       if (data === null) return true;
-      var objectKeys = [], index, length, pair, pairKey, pairHasKey, object3 = data;
+      var objectKeys = {}, index, length, pair, pairKey, pairHasKey, object3 = data;
       for (index = 0, length = object3.length; index < length; index += 1) {
         pair = object3[index];
         pairHasKey = false;
@@ -8334,8 +8334,8 @@ var require_omap = __commonJS({
           }
         }
         if (!pairHasKey) return false;
-        if (objectKeys.indexOf(pairKey) === -1) objectKeys.push(pairKey);
-        else return false;
+        if (_hasOwnProperty.call(objectKeys, pairKey)) return false;
+        Object.defineProperty(objectKeys, pairKey, { value: true });
       }
       return true;
     }
@@ -8687,6 +8687,7 @@ var require_loader = __commonJS({
       this.legacy = options2["legacy"] || false;
       this.json = options2["json"] || false;
       this.listener = options2["listener"] || null;
+      this.maxTotalMergeKeys = typeof options2["maxTotalMergeKeys"] === "number" ? options2["maxTotalMergeKeys"] : 1e4;
       this.implicitTypes = this.schema.compiledImplicit;
       this.typeMap = this.schema.compiledTypeMap;
       this.length = input.length;
@@ -8694,6 +8695,7 @@ var require_loader = __commonJS({
       this.line = 0;
       this.lineStart = 0;
       this.lineIndent = 0;
+      this.totalMergeKeys = 0;
       this.documents = [];
     }
     function generateError(state, message) {
@@ -8770,14 +8772,22 @@ var require_loader = __commonJS({
         state.result += _result;
       }
     }
+    function chargeMergeWork(state) {
+      state.totalMergeKeys += 1;
+      if (state.maxTotalMergeKeys !== -1 && state.totalMergeKeys > state.maxTotalMergeKeys) {
+        throwError(state, "merge keys exceeded maxTotalMergeKeys (" + state.maxTotalMergeKeys + ")");
+      }
+    }
     function mergeMappings(state, destination, source, overridableKeys) {
       var sourceKeys, key, index, quantity;
       if (!common.isObject(source)) {
         throwError(state, "cannot merge mappings; the provided source object is unacceptable");
       }
+      chargeMergeWork(state);
       sourceKeys = Object.keys(source);
       for (index = 0, quantity = sourceKeys.length; index < quantity; index += 1) {
         key = sourceKeys[index];
+        chargeMergeWork(state);
         if (!_hasOwnProperty.call(destination, key)) {
           setProperty(destination, key, source[key]);
           overridableKeys[key] = true;
@@ -8806,6 +8816,9 @@ var require_loader = __commonJS({
       }
       if (keyTag === "tag:yaml.org,2002:merge") {
         if (Array.isArray(valueNode)) {
+          if (valueNode.length > 100) {
+            throwError(state, "abnormal merge sequence size");
+          }
           for (index = 0, quantity = valueNode.length; index < quantity; index += 1) {
             mergeMappings(state, _result, valueNode[index], overridableKeys);
           }
@@ -10503,11 +10516,11 @@ var require_excerpt = __commonJS({
       if (typeof opts.excerpt === "function") {
         return opts.excerpt(file2, opts);
       }
-      const sep2 = file2.data.excerpt_separator || opts.excerpt_separator;
-      if (sep2 == null && (opts.excerpt === false || opts.excerpt == null)) {
+      const sep3 = file2.data.excerpt_separator || opts.excerpt_separator;
+      if (sep3 == null && (opts.excerpt === false || opts.excerpt == null)) {
         return file2;
       }
-      const delimiter = typeof opts.excerpt === "string" ? opts.excerpt : sep2 || opts.delimiters[0];
+      const delimiter = typeof opts.excerpt === "string" ? opts.excerpt : sep3 || opts.delimiters[0];
       const idx = file2.content.indexOf(delimiter);
       if (idx !== -1) {
         file2.excerpt = file2.content.slice(0, idx);
@@ -10572,7 +10585,7 @@ var require_parse = __commonJS({
 var require_gray_matter = __commonJS({
   "node_modules/gray-matter/index.js"(exports2, module2) {
     "use strict";
-    var fs7 = require("fs");
+    var fs8 = require("fs");
     var sections = require_section_matter();
     var defaults = require_defaults2();
     var stringify = require_stringify();
@@ -10656,7 +10669,7 @@ var require_gray_matter = __commonJS({
       return stringify(file2, data, options2);
     };
     matter4.read = function(filepath, options2) {
-      const str2 = fs7.readFileSync(filepath, "utf8");
+      const str2 = fs8.readFileSync(filepath, "utf8");
       const file2 = matter4(str2, options2);
       file2.path = filepath;
       return file2;
@@ -24621,8 +24634,8 @@ function getErrorMap() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path6, errorMaps, issueData } = params;
-  const fullPath = [...path6, ...issueData.path || []];
+  const { data, path: path7, errorMaps, issueData } = params;
+  const fullPath = [...path7, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -24737,11 +24750,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path6, key) {
+  constructor(parent, value, path7, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path6;
+    this._path = path7;
     this._key = key;
   }
   get path() {
@@ -28385,10 +28398,10 @@ function mergeDefs(...defs) {
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path6) {
-  if (!path6)
+function getElementAtPath(obj, path7) {
+  if (!path7)
     return obj;
-  return path6.reduce((acc, key) => acc?.[key], obj);
+  return path7.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -28771,11 +28784,11 @@ function aborted(x2, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path6, issues) {
+function prefixIssues(path7, issues) {
   return issues.map((iss) => {
     var _a2;
     (_a2 = iss).path ?? (_a2.path = []);
-    iss.path.unshift(path6);
+    iss.path.unshift(path7);
     return iss;
   });
 }
@@ -36589,6 +36602,9 @@ var Protocol = class {
       this.setRequestHandler(GetTaskPayloadRequestSchema, async (request, extra) => {
         const handleTaskResult = async () => {
           const taskId = request.params.taskId;
+          if (!await this._taskStore.getTask(taskId, extra.sessionId)) {
+            throw new McpError(ErrorCode.InvalidParams, `Task not found: ${taskId}`);
+          }
           if (this._taskMessageQueue) {
             let queuedMessage;
             while (queuedMessage = await this._taskMessageQueue.dequeue(taskId, extra.sessionId)) {
@@ -36619,12 +36635,12 @@ var Protocol = class {
             throw new McpError(ErrorCode.InvalidParams, `Task not found: ${taskId}`);
           }
           if (!isTerminal(task.status)) {
-            await this._waitForTaskUpdate(taskId, extra.signal);
+            await this._waitForTaskUpdate(taskId, extra.signal, extra.sessionId);
             return await handleTaskResult();
           }
           if (isTerminal(task.status)) {
             const result = await this._taskStore.getTaskResult(taskId, extra.sessionId);
-            this._clearTaskQueue(taskId);
+            this._clearTaskQueue(taskId, extra.sessionId);
             return {
               ...result,
               _meta: {
@@ -36661,7 +36677,7 @@ var Protocol = class {
             throw new McpError(ErrorCode.InvalidParams, `Cannot cancel task in terminal status: ${task.status}`);
           }
           await this._taskStore.updateTaskStatus(request.params.taskId, "cancelled", "Client cancelled task execution.", extra.sessionId);
-          this._clearTaskQueue(request.params.taskId);
+          this._clearTaskQueue(request.params.taskId, extra.sessionId);
           const cancelledTask = await this._taskStore.getTask(request.params.taskId, extra.sessionId);
           if (!cancelledTask) {
             throw new McpError(ErrorCode.InvalidParams, `Task not found after cancellation: ${request.params.taskId}`);
@@ -36789,6 +36805,19 @@ var Protocol = class {
     const handler = this._requestHandlers.get(request.method) ?? this.fallbackRequestHandler;
     const capturedTransport = this._transport;
     const relatedTaskId = request.params?._meta?.[RELATED_TASK_META_KEY]?.taskId;
+    const sessionId = capturedTransport?.sessionId;
+    const store = this._taskStore;
+    let relatedTaskFound = true;
+    let relatedTaskLookup;
+    if (relatedTaskId && store && this._taskMessageQueue && sessionId !== void 0) {
+      relatedTaskFound = false;
+      relatedTaskLookup = (async () => {
+        if (!await store.getTask(relatedTaskId, sessionId)) {
+          throw new McpError(ErrorCode.InvalidParams, `Task not found: ${relatedTaskId}`);
+        }
+        relatedTaskFound = true;
+      })();
+    }
     if (handler === void 0) {
       const errorResponse = {
         jsonrpc: "2.0",
@@ -36798,7 +36827,10 @@ var Protocol = class {
           message: "Method not found"
         }
       };
-      if (relatedTaskId && this._taskMessageQueue) {
+      if (relatedTaskId && relatedTaskLookup) {
+        const queuedError = { type: "error", message: errorResponse, timestamp: Date.now() };
+        relatedTaskLookup.then(() => this._enqueueTaskMessage(relatedTaskId, queuedError, sessionId), () => capturedTransport?.send(errorResponse)).catch((error2) => this._onerror(new Error(`Failed to send an error response: ${error2}`)));
+      } else if (relatedTaskId && this._taskMessageQueue) {
         this._enqueueTaskMessage(relatedTaskId, {
           type: "error",
           message: errorResponse,
@@ -36849,7 +36881,10 @@ var Protocol = class {
       closeSSEStream: extra?.closeSSEStream,
       closeStandaloneSSEStream: extra?.closeStandaloneSSEStream
     };
-    Promise.resolve().then(() => {
+    (relatedTaskLookup ?? Promise.resolve()).then(() => {
+      if (relatedTaskLookup && abortController.signal.aborted) {
+        throw new McpError(ErrorCode.ConnectionClosed, "Request was cancelled");
+      }
       if (taskCreationParams) {
         this.assertTaskHandlerCapability(request.method);
       }
@@ -36884,7 +36919,7 @@ var Protocol = class {
           ...error2["data"] !== void 0 && { data: error2["data"] }
         }
       };
-      if (relatedTaskId && this._taskMessageQueue) {
+      if (relatedTaskId && this._taskMessageQueue && relatedTaskFound) {
         await this._enqueueTaskMessage(relatedTaskId, {
           type: "error",
           message: errorResponse,
@@ -37364,7 +37399,7 @@ var Protocol = class {
       throw new Error("Cannot enqueue task message: taskStore and taskMessageQueue are not configured");
     }
     const maxQueueSize = this._options?.maxTaskQueueSize;
-    await this._taskMessageQueue.enqueue(taskId, message, sessionId, maxQueueSize);
+    await this._taskMessageQueue.enqueue(taskId, message, sessionId ?? this._transport?.sessionId, maxQueueSize);
   }
   /**
    * Clears the message queue for a task and rejects any pending request resolvers.
@@ -37393,12 +37428,13 @@ var Protocol = class {
    * Uses polling to check for updates at the task's configured poll interval.
    * @param taskId The task ID to wait for
    * @param signal Abort signal to cancel the wait
+   * @param sessionId Session of the request that waits, passed to the task store
    * @returns Promise that resolves when an update occurs or rejects if aborted
    */
-  async _waitForTaskUpdate(taskId, signal) {
+  async _waitForTaskUpdate(taskId, signal, sessionId) {
     let interval = this._options?.defaultTaskPollInterval ?? 1e3;
     try {
-      const task = await this._taskStore?.getTask(taskId);
+      const task = await this._taskStore?.getTask(taskId, sessionId);
       if (task?.pollInterval) {
         interval = task.pollInterval;
       }
@@ -37884,16 +37920,7 @@ var Server = class extends Protocol {
     if (!methodSchema) {
       throw new Error("Schema is missing a method literal");
     }
-    let methodValue;
-    if (isZ4Schema(methodSchema)) {
-      const v4Schema = methodSchema;
-      const v4Def = v4Schema._zod?.def;
-      methodValue = v4Def?.value ?? v4Schema.value;
-    } else {
-      const v3Schema = methodSchema;
-      const legacyDef = v3Schema._def;
-      methodValue = legacyDef?.value ?? v3Schema.value;
-    }
+    const methodValue = getLiteralValue(methodSchema);
     if (typeof methodValue !== "string") {
       throw new Error("Schema method literal must be a string");
     }
@@ -38202,8 +38229,17 @@ var Server = class extends Protocol {
 var import_node_process = __toESM(require("node:process"), 1);
 
 // node_modules/@modelcontextprotocol/sdk/dist/esm/shared/stdio.js
+var STDIO_DEFAULT_MAX_BUFFER_SIZE = 10 * 1024 * 1024;
 var ReadBuffer = class {
+  constructor(options2) {
+    this._maxBufferSize = options2?.maxBufferSize ?? STDIO_DEFAULT_MAX_BUFFER_SIZE;
+  }
   append(chunk) {
+    const newSize = (this._buffer?.length ?? 0) + chunk.length;
+    if (newSize > this._maxBufferSize) {
+      this.clear();
+      throw new Error(`ReadBuffer exceeded maximum size of ${this._maxBufferSize} bytes`);
+    }
     this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
   }
   readMessage() {
@@ -38231,18 +38267,24 @@ function serializeMessage(message) {
 
 // node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
 var StdioServerTransport = class {
-  constructor(_stdin = import_node_process.default.stdin, _stdout = import_node_process.default.stdout) {
+  constructor(_stdin = import_node_process.default.stdin, _stdout = import_node_process.default.stdout, options2) {
     this._stdin = _stdin;
     this._stdout = _stdout;
-    this._readBuffer = new ReadBuffer();
     this._started = false;
     this._ondata = (chunk) => {
-      this._readBuffer.append(chunk);
-      this.processReadBuffer();
+      try {
+        this._readBuffer.append(chunk);
+        this.processReadBuffer();
+      } catch (error2) {
+        this.onerror?.(error2);
+        this.close().catch(() => {
+        });
+      }
     };
     this._onerror = (error2) => {
       this.onerror?.(error2);
     };
+    this._readBuffer = new ReadBuffer({ maxBufferSize: options2?.maxBufferSize });
   }
   /**
    * Starts listening for messages on stdin.
@@ -38291,9 +38333,9 @@ var StdioServerTransport = class {
 };
 
 // src/index.ts
-var fs6 = __toESM(require("fs/promises"));
-var path5 = __toESM(require("path"));
-var os4 = __toESM(require("os"));
+var fs7 = __toESM(require("fs/promises"));
+var path6 = __toESM(require("path"));
+var os5 = __toESM(require("os"));
 
 // node_modules/glob/dist/esm/index.min.js
 var import_node_url = require("node:url");
@@ -41601,8 +41643,8 @@ var FileCache = class {
    * Instantiate a `FileCache` object.
    * @param {string} path 
    */
-  constructor(path6) {
-    this.path = path6;
+  constructor(path7) {
+    this.path = path7;
   }
   /**
    * Checks whether the given request is in the cache.
@@ -53182,25 +53224,25 @@ var RawImage = class _RawImage {
    * Save the image to the given path.
    * @param {string} path The path to save the image to.
    */
-  async save(path6) {
+  async save(path7) {
     if (BROWSER_ENV) {
       if (WEBWORKER_ENV) {
         throw new Error("Unable to save an image from a Web Worker.");
       }
-      const extension = path6.split(".").pop().toLowerCase();
+      const extension = path7.split(".").pop().toLowerCase();
       const mime = CONTENT_TYPE_MAP.get(extension) ?? "image/png";
       const blob = await this.toBlob(mime);
       const dataURL = URL.createObjectURL(blob);
       const downloadLink = document.createElement("a");
       downloadLink.href = dataURL;
-      downloadLink.download = path6;
+      downloadLink.download = path7;
       downloadLink.click();
       downloadLink.remove();
     } else if (!env.useFS) {
       throw new Error("Unable to save the image because filesystem is disabled in this environment.");
     } else {
       const img = this.toSharp();
-      return await img.toFile(path6);
+      return await img.toFile(path7);
     }
   }
   toSharp() {
@@ -56937,8 +56979,8 @@ function getSafeFilePath(vaultPath, userInputPath) {
 async function isObsidianVault(dir) {
   if (!dir || !path3.isAbsolute(dir)) return false;
   try {
-    const stat3 = await fs4.stat(path3.join(dir, ".obsidian"));
-    return stat3.isDirectory();
+    const stat4 = await fs4.stat(path3.join(dir, ".obsidian"));
+    return stat4.isDirectory();
   } catch {
     return false;
   }
@@ -56986,8 +57028,8 @@ function insertAtHeading(fileContent, heading, content, position, range2) {
       return fileContent.slice(0, range2.bodyStart) + "\n" + content + fileContent.slice(range2.bodyStart);
     }
     const before = fileContent.slice(0, range2.bodyEnd);
-    const sep2 = before.length > 0 && !before.endsWith("\n") ? "\n" : "";
-    return before + sep2 + content + "\n" + fileContent.slice(range2.bodyEnd);
+    const sep3 = before.length > 0 && !before.endsWith("\n") ? "\n" : "";
+    return before + sep3 + content + "\n" + fileContent.slice(range2.bodyEnd);
   }
   return fileContent + `
 
@@ -57028,15 +57070,15 @@ function applyFrontmatterUpdate(fileContent, update) {
   }
   return import_gray_matter.default.stringify(parsed.content, parsed.data);
 }
-function getObsidianAppConfigPath(platform = process.platform, homedir4 = os2.homedir()) {
+function getObsidianAppConfigPath(platform = process.platform, homedir5 = os2.homedir()) {
   if (platform === "win32") {
-    const appData = process.env.APPDATA || path3.join(homedir4, "AppData", "Roaming");
+    const appData = process.env.APPDATA || path3.join(homedir5, "AppData", "Roaming");
     return path3.join(appData, "obsidian", "obsidian.json");
   }
   if (platform === "darwin") {
-    return path3.join(homedir4, "Library", "Application Support", "obsidian", "obsidian.json");
+    return path3.join(homedir5, "Library", "Application Support", "obsidian", "obsidian.json");
   }
-  const configHome = process.env.XDG_CONFIG_HOME || path3.join(homedir4, ".config");
+  const configHome = process.env.XDG_CONFIG_HOME || path3.join(homedir5, ".config");
   return path3.join(configHome, "obsidian", "obsidian.json");
 }
 function generateVaultId() {
@@ -57434,6 +57476,305 @@ var VaultIndexer = class {
   }
 };
 
+// src/session-harvester.ts
+var fs6 = __toESM(require("fs/promises"));
+var path5 = __toESM(require("path"));
+var os4 = __toESM(require("os"));
+async function resolveProjectMapping(geminiDir) {
+  const projectsJsonPath = path5.join(geminiDir, "projects.json");
+  const mapping = {};
+  try {
+    const raw = await fs6.readFile(projectsJsonPath, "utf-8");
+    const parsed = JSON.parse(raw);
+    const projects = parsed.projects || {};
+    for (const [realPath, tmpId] of Object.entries(projects)) {
+      if (typeof tmpId === "string") {
+        mapping[tmpId] = realPath;
+      }
+    }
+  } catch {
+  }
+  return mapping;
+}
+var INTERNAL_CONTEXT_TAGS = [
+  "session_context",
+  "system_note",
+  "scratchpad",
+  "state_snapshot",
+  "loaded_context",
+  "extension_context"
+];
+var IGNORED_PREAMBLE_PATTERNS = [
+  "## 1.0 SYSTEM DIRECTIVE",
+  // Conductor task directive preamble
+  "[System:"
+  // CLI framework notices
+];
+function cleanUserText(rawText) {
+  if (!rawText) return null;
+  let text = rawText;
+  for (const tag of INTERNAL_CONTEXT_TAGS) {
+    const regex = new RegExp(`<${tag}>[\\s\\S]*?<\\/${tag}>`, "gi");
+    text = text.replace(regex, "");
+  }
+  text = text.trim();
+  if (!text) return null;
+  for (const pattern of IGNORED_PREAMBLE_PATTERNS) {
+    if (text.includes(pattern)) {
+      return null;
+    }
+  }
+  return text;
+}
+function extractKeyAction(toolName, args = {}) {
+  if (toolName === "run_shell_command") {
+    const cmd = typeof args?.command === "string" ? args.command.trim() : "";
+    if (!cmd) return null;
+    if (cmd.startsWith("git commit") || cmd.startsWith("git push") || cmd.startsWith("git merge") || cmd.startsWith("git rebase") || cmd.startsWith("git tag") || cmd.startsWith("gh pr") || cmd.includes("git commit") || cmd.includes("git push")) {
+      return `VCS: ${cmd.slice(0, 70)}`;
+    }
+    if (cmd.startsWith("npm test") || cmd.startsWith("npm run test") || cmd.startsWith("npx vitest") || cmd.startsWith("pytest") || cmd.startsWith("cargo test") || cmd.startsWith("go test") || cmd.startsWith("ctest") || cmd.startsWith("make test")) {
+      return `Test: ${cmd.slice(0, 70)}`;
+    }
+    if (cmd.startsWith("npm run build") || cmd.startsWith("cargo build") || cmd.startsWith("docker build") || cmd.startsWith("cmake --build")) {
+      return `Build: ${cmd.slice(0, 70)}`;
+    }
+  }
+  if (toolName === "obsidian_create_note" || toolName === "obsidian_append_note" || toolName === "obsidian_create_vault" || toolName.includes("issue") || toolName.includes("pull_request") || toolName.includes("review") || toolName.includes("ticket")) {
+    return `Action: ${toolName}`;
+  }
+  return null;
+}
+async function parseSessionJsonl(sessionFile, tmpDirName, projectPath) {
+  let content;
+  try {
+    content = await fs6.readFile(sessionFile, "utf-8");
+  } catch {
+    return null;
+  }
+  const lines = content.split("\n");
+  const userPrompts = [];
+  const topics = [];
+  const keyActions = [];
+  const toolsUsed = {};
+  let toolCallCount = 0;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    let parsed;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    const role = parsed.role || parsed.type;
+    if (role === "user") {
+      const parts = parsed.parts || parsed.content || parsed.message;
+      if (Array.isArray(parts)) {
+        for (const p of parts) {
+          if (p && typeof p === "object") {
+            if (typeof p.text === "string") {
+              const cleaned = cleanUserText(p.text);
+              if (cleaned && !userPrompts.includes(cleaned)) {
+                userPrompts.push(cleaned);
+              }
+            }
+          } else if (typeof p === "string") {
+            const cleaned = cleanUserText(p);
+            if (cleaned && !userPrompts.includes(cleaned)) {
+              userPrompts.push(cleaned);
+            }
+          }
+        }
+      } else if (typeof parts === "string") {
+        const cleaned = cleanUserText(parts);
+        if (cleaned && !userPrompts.includes(cleaned)) {
+          userPrompts.push(cleaned);
+        }
+      }
+    }
+    if (role === "model" || role === "gemini" || Array.isArray(parsed.toolCalls)) {
+      if (Array.isArray(parsed.toolCalls)) {
+        for (const tc of parsed.toolCalls) {
+          if (!tc || typeof tc !== "object") continue;
+          const toolName = tc.name || tc.call;
+          if (toolName) {
+            toolCallCount++;
+            toolsUsed[toolName] = (toolsUsed[toolName] || 0) + 1;
+            if (toolName === "update_topic") {
+              const args = tc.args || tc.parameters || {};
+              const topicText = args.title || args.strategic_intent;
+              if (topicText && typeof topicText === "string" && !topics.includes(topicText)) {
+                topics.push(topicText);
+              }
+            } else {
+              const action = extractKeyAction(toolName, tc.args || tc.parameters || {});
+              if (action && !keyActions.includes(action)) {
+                keyActions.push(action);
+              }
+            }
+          }
+        }
+      }
+      const parts = parsed.parts || parsed.content || [];
+      if (Array.isArray(parts)) {
+        for (const p of parts) {
+          if (!p || typeof p !== "object") continue;
+          const fn = p.functionCall || p.call;
+          if (fn) {
+            const toolName = fn.name || fn.call || p.name;
+            if (toolName) {
+              toolCallCount++;
+              toolsUsed[toolName] = (toolsUsed[toolName] || 0) + 1;
+              if (toolName === "update_topic") {
+                const args = fn.args || fn.parameters || {};
+                const topicText = args.title || args.strategic_intent;
+                if (topicText && typeof topicText === "string" && !topics.includes(topicText)) {
+                  topics.push(topicText);
+                }
+              } else {
+                const action = extractKeyAction(toolName, fn.args || fn.parameters || {});
+                if (action && !keyActions.includes(action)) {
+                  keyActions.push(action);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  if (userPrompts.length === 0 && topics.length === 0) {
+    return null;
+  }
+  let projectName = tmpDirName;
+  if (projectPath) {
+    projectName = path5.basename(projectPath);
+  }
+  const baseName = path5.basename(sessionFile, ".jsonl");
+  const idMatch = baseName.match(/session-[\d-]+T[\d-]+-([a-zA-Z0-9]+)/);
+  const sessionId = idMatch ? idMatch[1] : baseName;
+  return {
+    projectName,
+    projectPath,
+    sessionId,
+    sessionFile,
+    userPrompts,
+    topics,
+    keyActions,
+    stats: {
+      userTurnCount: userPrompts.length,
+      toolCallCount,
+      toolsUsed
+    }
+  };
+}
+async function tryReadTemplate(vaultPath, templateRelativeOrAbs) {
+  const candidates = [];
+  try {
+    const safeTarget = getSafeFilePath(vaultPath, templateRelativeOrAbs);
+    if (safeTarget.endsWith(".md")) {
+      candidates.push(safeTarget);
+    } else {
+      candidates.push(`${safeTarget}.md`, safeTarget);
+    }
+  } catch {
+    return void 0;
+  }
+  for (const candidate of candidates) {
+    try {
+      return await fs6.readFile(candidate, "utf-8");
+    } catch {
+    }
+  }
+  return void 0;
+}
+async function loadTemplateContent(vaultPath, templatePath) {
+  if (!vaultPath) {
+    return void 0;
+  }
+  if (templatePath && templatePath.trim()) {
+    return await tryReadTemplate(vaultPath, templatePath.trim());
+  }
+  const dailyNotesConfigPath = path5.join(vaultPath, ".obsidian", "daily-notes.json");
+  try {
+    const rawConfig = await fs6.readFile(dailyNotesConfigPath, "utf-8");
+    const parsedConfig = JSON.parse(rawConfig);
+    if (typeof parsedConfig?.template === "string" && parsedConfig.template.trim()) {
+      return await tryReadTemplate(vaultPath, parsedConfig.template.trim());
+    }
+  } catch {
+  }
+  return void 0;
+}
+function getLocalDateString(d = /* @__PURE__ */ new Date()) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+async function harvestSessions(options2 = {}) {
+  if (options2.date && !/^\d{4}-\d{2}-\d{2}$/.test(options2.date)) {
+    throw new Error("Invalid date: expected YYYY-MM-DD");
+  }
+  const geminiDir = options2.geminiDir || path5.join(os4.homedir(), ".gemini");
+  const date4 = options2.date || getLocalDateString();
+  const tmpDir = path5.join(geminiDir, "tmp");
+  const report = {
+    date: date4,
+    totalSessionsScanned: 0,
+    activeProjectsCount: 0,
+    projects: []
+  };
+  try {
+    const stat4 = await fs6.stat(tmpDir);
+    if (!stat4.isDirectory()) {
+      return report;
+    }
+  } catch {
+    return report;
+  }
+  const projectMap = await resolveProjectMapping(geminiDir);
+  const globPattern = path5.join(tmpDir, "*", "chats", `session-${date4}*.jsonl`);
+  const sessionFiles = await Ze(globPattern, { windowsPathsNoEscape: true });
+  report.totalSessionsScanned = sessionFiles.length;
+  const projectRecapsMap = /* @__PURE__ */ new Map();
+  for (const file2 of sessionFiles) {
+    const parts = file2.split(path5.sep);
+    const chatsIndex = parts.lastIndexOf("chats");
+    const tmpName = chatsIndex > 0 ? parts[chatsIndex - 1] : "unknown";
+    const realProjectPath = projectMap[tmpName] || "";
+    const recap = await parseSessionJsonl(file2, tmpName, realProjectPath);
+    if (!recap) continue;
+    const key = recap.projectPath || recap.projectName;
+    const existing = projectRecapsMap.get(key);
+    if (!existing) {
+      projectRecapsMap.set(key, recap);
+    } else {
+      for (const p of recap.userPrompts) {
+        if (!existing.userPrompts.includes(p)) existing.userPrompts.push(p);
+      }
+      for (const t of recap.topics) {
+        if (!existing.topics.includes(t)) existing.topics.push(t);
+      }
+      for (const a of recap.keyActions) {
+        if (!existing.keyActions.includes(a)) existing.keyActions.push(a);
+      }
+      existing.stats.userTurnCount += recap.stats.userTurnCount;
+      existing.stats.toolCallCount += recap.stats.toolCallCount;
+      for (const [tool, count] of Object.entries(recap.stats.toolsUsed)) {
+        existing.stats.toolsUsed[tool] = (existing.stats.toolsUsed[tool] || 0) + count;
+      }
+    }
+  }
+  report.projects = Array.from(projectRecapsMap.values());
+  report.activeProjectsCount = report.projects.length;
+  if (options2.vaultPath) {
+    report.templateContent = await loadTemplateContent(options2.vaultPath, options2.templatePath);
+  }
+  return report;
+}
+
 // src/index.ts
 try {
   require.resolve("@lancedb/lancedb");
@@ -57459,17 +57800,17 @@ try {
 }
 var VAULT_PATH = process.env.OBSIDIAN_VAULT_PATH || null;
 var indexer = new VaultIndexer();
-var CONFIG_PATH = path5.join(os4.homedir(), ".gemini-obsidian.config.json");
+var CONFIG_PATH = path6.join(os5.homedir(), ".gemini-obsidian.config.json");
 async function saveConfig(vaultPath) {
   try {
-    await fs6.writeFile(CONFIG_PATH, JSON.stringify({ vault_path: vaultPath }), "utf-8");
+    await fs7.writeFile(CONFIG_PATH, JSON.stringify({ vault_path: vaultPath }), "utf-8");
   } catch (e) {
     console.error("Failed to save config", e);
   }
 }
 async function loadConfig2() {
   try {
-    const data = await fs6.readFile(CONFIG_PATH, "utf-8");
+    const data = await fs7.readFile(CONFIG_PATH, "utf-8");
     return JSON.parse(data).vault_path;
   } catch {
     return null;
@@ -57517,7 +57858,7 @@ async function readStdin() {
     }
   }
   const args = process.argv.slice(2);
-  const knownTools = ["obsidian_list_notes", "obsidian_read_note", "obsidian_search_notes", "obsidian_rag_index", "obsidian_rag_query", "obsidian_set_vault", "obsidian_create_vault", "obsidian_create_note", "obsidian_append_note", "obsidian_get_daily_note", "obsidian_get_backlinks", "obsidian_get_links", "obsidian_move_note", "obsidian_update_frontmatter", "obsidian_append_daily_log", "obsidian_replace_section", "obsidian_insert_at_heading", "obsidian_replace_in_note", "obsidian_get_broken_links", "validate_frontmatter"];
+  const knownTools = ["obsidian_list_notes", "obsidian_read_note", "obsidian_search_notes", "obsidian_rag_index", "obsidian_rag_query", "obsidian_set_vault", "obsidian_create_vault", "obsidian_create_note", "obsidian_append_note", "obsidian_get_daily_note", "obsidian_get_backlinks", "obsidian_get_links", "obsidian_move_note", "obsidian_update_frontmatter", "obsidian_append_daily_log", "obsidian_replace_section", "obsidian_insert_at_heading", "obsidian_replace_in_note", "obsidian_get_broken_links", "obsidian_harvest_cli_sessions", "validate_frontmatter"];
   if (args.length > 0 && knownTools.includes(args[0])) {
     const toolName = args[0];
     const toolArgs = args.slice(1);
@@ -57540,7 +57881,7 @@ async function readStdin() {
         if (!targetPath) {
           throw new Error("Missing required argument: --path <path>");
         }
-        if (!path5.isAbsolute(String(targetPath))) {
+        if (!path6.isAbsolute(String(targetPath))) {
           throw new Error(`Argument 'path' must be an absolute path: ${targetPath}`);
         }
         const setAsCurrent = parsedArgs.set_as_current !== false && parsedArgs.set_as_current !== "false";
@@ -57560,34 +57901,34 @@ async function readStdin() {
       } else if (toolName === "obsidian_read_note") {
         const vp = await getCliVaultPath(parsedArgs.vault_path);
         const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
-        result = await fs6.readFile(filePath, "utf-8");
+        result = await fs7.readFile(filePath, "utf-8");
       } else if (toolName === "obsidian_create_note") {
         const vp = await getCliVaultPath(parsedArgs.vault_path);
         const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
         const content = String(parsedArgs.content || "");
-        await fs6.mkdir(path5.dirname(filePath), { recursive: true });
-        await fs6.writeFile(filePath, content, "utf-8");
+        await fs7.mkdir(path6.dirname(filePath), { recursive: true });
+        await fs7.writeFile(filePath, content, "utf-8");
         result = `Created note: ${parsedArgs.file_path}`;
       } else if (toolName === "obsidian_append_note") {
         const vp = await getCliVaultPath(parsedArgs.vault_path);
         const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
         const content = String(parsedArgs.content || "");
-        await fs6.appendFile(filePath, "\n" + content, "utf-8");
+        await fs7.appendFile(filePath, "\n" + content, "utf-8");
         result = `Appended to note: ${parsedArgs.file_path}`;
       } else if (toolName === "obsidian_get_daily_note") {
         const vp = await getCliVaultPath(parsedArgs.vault_path);
         const dateStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
-        const dailyFolder = await fs6.stat(path5.join(vp, "Daily Notes")).catch(() => null) ? "Daily Notes" : "";
+        const dailyFolder = await fs7.stat(path6.join(vp, "Daily Notes")).catch(() => null) ? "Daily Notes" : "";
         const fileName = `${dateStr}.md`;
-        const filePath = path5.join(vp, dailyFolder, fileName);
+        const filePath = path6.join(vp, dailyFolder, fileName);
         try {
-          result = await fs6.readFile(filePath, "utf-8");
+          result = await fs7.readFile(filePath, "utf-8");
         } catch (e) {
-          await fs6.mkdir(path5.dirname(filePath), { recursive: true });
+          await fs7.mkdir(path6.dirname(filePath), { recursive: true });
           const content = `# ${dateStr}
 
 `;
-          await fs6.writeFile(filePath, content, "utf-8");
+          await fs7.writeFile(filePath, content, "utf-8");
           result = content;
         }
       } else if (toolName === "obsidian_search_notes") {
@@ -57601,7 +57942,7 @@ async function readStdin() {
             continue;
           }
           try {
-            const c = await fs6.readFile(path5.join(vp, f), "utf-8");
+            const c = await fs7.readFile(path6.join(vp, f), "utf-8");
             if (c.toLowerCase().includes(query)) matches.push(f);
           } catch (e) {
           }
@@ -57650,7 +57991,7 @@ Content: ${r.text}`).join("\n---\n");
           const batch = files.slice(i2, i2 + batchSize);
           await Promise.all(batch.map(async (f) => {
             try {
-              const content = await fs6.readFile(path5.join(vp, f), "utf-8");
+              const content = await fs7.readFile(path6.join(vp, f), "utf-8");
               if (linkRegex.test(content)) {
                 backlinks.push(f);
               }
@@ -57667,19 +58008,19 @@ Content: ${r.text}`).join("\n---\n");
       } else if (toolName === "obsidian_get_links") {
         const vp = await getCliVaultPath(parsedArgs.vault_path);
         const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
-        const content = await fs6.readFile(filePath, "utf-8");
+        const content = await fs7.readFile(filePath, "utf-8");
         result = JSON.stringify(extractWikilinks(content), null, 2);
       } else if (toolName === "obsidian_move_note") {
         const vp = await getCliVaultPath(parsedArgs.vault_path);
         const source = getSafeFilePath(vp, String(parsedArgs.source_path));
         const dest = getSafeFilePath(vp, String(parsedArgs.dest_path));
-        await fs6.mkdir(path5.dirname(dest), { recursive: true });
-        await fs6.rename(source, dest);
+        await fs7.mkdir(path6.dirname(dest), { recursive: true });
+        await fs7.rename(source, dest);
         result = `Moved ${parsedArgs.source_path} to ${parsedArgs.dest_path}`;
       } else if (toolName === "obsidian_update_frontmatter") {
         const vp = await getCliVaultPath(parsedArgs.vault_path);
         const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
-        const fileContent = await fs6.readFile(filePath, "utf-8");
+        const fileContent = await fs7.readFile(filePath, "utf-8");
         let updateArg;
         if (parsedArgs.updates) {
           const updates = typeof parsedArgs.updates === "string" ? JSON.parse(parsedArgs.updates) : parsedArgs.updates;
@@ -57687,17 +58028,17 @@ Content: ${r.text}`).join("\n---\n");
         } else {
           updateArg = { key: String(parsedArgs.key), value: String(parsedArgs.value) };
         }
-        await fs6.writeFile(filePath, applyFrontmatterUpdate(fileContent, updateArg), "utf-8");
+        await fs7.writeFile(filePath, applyFrontmatterUpdate(fileContent, updateArg), "utf-8");
         result = `Updated frontmatter in ${parsedArgs.file_path}`;
       } else if (toolName === "obsidian_replace_section") {
         const vp = await getCliVaultPath(parsedArgs.vault_path);
         const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
         const heading = String(parsedArgs.heading);
         const content = String(parsedArgs.content);
-        const fileContent = await fs6.readFile(filePath, "utf-8");
+        const fileContent = await fs7.readFile(filePath, "utf-8");
         const range2 = findSectionRange(fileContent, heading);
         if (!range2) throw new Error(`Heading "${heading}" not found in ${parsedArgs.file_path}`);
-        await fs6.writeFile(filePath, replaceSection(fileContent, range2, content), "utf-8");
+        await fs7.writeFile(filePath, replaceSection(fileContent, range2, content), "utf-8");
         result = `Replaced section "${heading}" in ${parsedArgs.file_path}`;
       } else if (toolName === "obsidian_insert_at_heading") {
         const vp = await getCliVaultPath(parsedArgs.vault_path);
@@ -57705,23 +58046,23 @@ Content: ${r.text}`).join("\n---\n");
         const heading = String(parsedArgs.heading);
         const content = String(parsedArgs.content);
         const position = parsedArgs.position || "end";
-        const fileContent = await fs6.readFile(filePath, "utf-8");
+        const fileContent = await fs7.readFile(filePath, "utf-8");
         const range2 = findSectionRange(fileContent, heading);
-        await fs6.writeFile(filePath, insertAtHeading(fileContent, heading, content, position, range2), "utf-8");
+        await fs7.writeFile(filePath, insertAtHeading(fileContent, heading, content, position, range2), "utf-8");
         result = `Inserted content under "${heading}" in ${parsedArgs.file_path}`;
       } else if (toolName === "obsidian_append_daily_log") {
         const vp = await getCliVaultPath(parsedArgs.vault_path);
         const heading = String(parsedArgs.heading);
         const content = String(parsedArgs.content);
         const dateStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
-        const dailyFolder = await fs6.stat(path5.join(vp, "Daily Notes")).catch(() => null) ? "Daily Notes" : "";
+        const dailyFolder = await fs7.stat(path6.join(vp, "Daily Notes")).catch(() => null) ? "Daily Notes" : "";
         const fileName = `${dateStr}.md`;
-        const filePath = path5.join(vp, dailyFolder, fileName);
+        const filePath = path6.join(vp, dailyFolder, fileName);
         let fileContent = "";
         try {
-          fileContent = await fs6.readFile(filePath, "utf-8");
+          fileContent = await fs7.readFile(filePath, "utf-8");
         } catch (e) {
-          await fs6.mkdir(path5.dirname(filePath), { recursive: true });
+          await fs7.mkdir(path6.dirname(filePath), { recursive: true });
           fileContent = `# ${dateStr}
 
 `;
@@ -57737,24 +58078,24 @@ Content: ${r.text}`).join("\n---\n");
 
 ## ${heading}${entry}`;
         }
-        await fs6.writeFile(filePath, fileContent, "utf-8");
+        await fs7.writeFile(filePath, fileContent, "utf-8");
         result = `Appended to daily note under "${heading}"`;
       } else if (toolName === "obsidian_replace_in_note") {
         const vp = await getCliVaultPath(parsedArgs.vault_path);
         const filePath = getSafeFilePath(vp, String(parsedArgs.file_path));
-        const fileContent = await fs6.readFile(filePath, "utf-8");
+        const fileContent = await fs7.readFile(filePath, "utf-8");
         const updated = replaceInNote(fileContent, String(parsedArgs.old_text), String(parsedArgs.new_text ?? ""));
-        await fs6.writeFile(filePath, updated, "utf-8");
+        await fs7.writeFile(filePath, updated, "utf-8");
         result = `Replaced text in ${parsedArgs.file_path}`;
       } else if (toolName === "obsidian_get_broken_links") {
         const vp = await getCliVaultPath(parsedArgs.vault_path);
         const pattern = listNotesPattern(parsedArgs.subfolder ? String(parsedArgs.subfolder) : void 0);
         const files = await Ze(pattern, { cwd: vp, follow: true });
         const allFiles = await Ze("**/*.md", { cwd: vp, follow: true });
-        const nameSet = new Set(allFiles.map((f) => path5.basename(f, ".md").toLowerCase()));
+        const nameSet = new Set(allFiles.map((f) => path6.basename(f, ".md").toLowerCase()));
         const targetMap = /* @__PURE__ */ new Map();
         for (const f of files) {
-          const content = await fs6.readFile(path5.join(vp, f), "utf-8").catch(() => "");
+          const content = await fs7.readFile(path6.join(vp, f), "utf-8").catch(() => "");
           for (const link of extractWikilinks(content)) {
             const target = stripHeadingFromLink(link);
             if (!target) continue;
@@ -57771,6 +58112,24 @@ Content: ${r.text}`).join("\n---\n");
         }
         result = broken.length === 0 ? "No broken links found." : `Found ${broken.length} broken link(s):
 ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}`).join("\n")}`;
+      } else if (toolName === "obsidian_harvest_cli_sessions") {
+        let vp;
+        if (parsedArgs.vault_path !== void 0 && parsedArgs.vault_path !== true) {
+          vp = await validateVaultRoot(String(parsedArgs.vault_path));
+        } else {
+          try {
+            vp = getVaultPath();
+          } catch {
+            vp = void 0;
+          }
+        }
+        const report = await harvestSessions({
+          date: parsedArgs.date ? String(parsedArgs.date) : void 0,
+          geminiDir: parsedArgs.gemini_dir ? String(parsedArgs.gemini_dir) : void 0,
+          vaultPath: vp,
+          templatePath: parsedArgs.template_path ? String(parsedArgs.template_path) : void 0
+        });
+        result = JSON.stringify(report, null, 2);
       } else if (toolName === "validate_frontmatter") {
         if (!parsedArgs.hook) {
           process.exit(0);
@@ -57797,13 +58156,13 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
           process.exit(0);
         }
         const schemaPaths = [
-          path5.join(vp, ".gemini-obsidian-schema.json"),
-          path5.join(vp, ".obsidian-rag-schema.json")
+          path6.join(vp, ".gemini-obsidian-schema.json"),
+          path6.join(vp, ".obsidian-rag-schema.json")
         ];
         let schema;
         for (const schemaPath of schemaPaths) {
           try {
-            schema = JSON.parse(await fs6.readFile(schemaPath, "utf-8"));
+            schema = JSON.parse(await fs7.readFile(schemaPath, "utf-8"));
             break;
           } catch {
           }
@@ -58069,6 +58428,17 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
               subfolder: { type: "string", description: "Limit scan to this subfolder (optional; default: entire vault)" }
             }
           }
+        },
+        {
+          name: "obsidian_harvest_cli_sessions",
+          description: "Scan and harvest Gemini CLI terminal sessions across all project workspaces for a given date (defaults to today), extracting user intents, topics, and key engineering milestones with support for custom template-driven daily logging and work recaps.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              date: { type: "string", description: "Target date in YYYY-MM-DD format (defaults to current local date)" },
+              template_path: { type: "string", description: 'Optional relative path to a custom markdown template in the vault (e.g. "Templates/Daily-Work-Log.md")' }
+            }
+          }
         }
       ]
     };
@@ -58086,7 +58456,7 @@ ${broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}
         if (!targetPath) {
           throw new McpError(ErrorCode.InvalidParams, "Missing required argument: 'path'");
         }
-        if (!path5.isAbsolute(String(targetPath))) {
+        if (!path6.isAbsolute(String(targetPath))) {
           throw new McpError(ErrorCode.InvalidParams, `Argument 'path' must be an absolute path: ${targetPath}`);
         }
         const register = args2?.register === true;
@@ -58123,39 +58493,39 @@ Obsidian desktop registered: false (desktop app registration is opt-in; pass reg
       if (name2 === "obsidian_read_note") {
         const vp = getVaultPath();
         const filePath = getSafeFilePath(vp, String(args2?.file_path));
-        const content = await fs6.readFile(filePath, "utf-8");
+        const content = await fs7.readFile(filePath, "utf-8");
         return { content: [{ type: "text", text: content }] };
       }
       if (name2 === "obsidian_create_note") {
         const vp = getVaultPath();
         const filePath = getSafeFilePath(vp, String(args2?.file_path));
         const content = String(args2?.content || "");
-        await fs6.mkdir(path5.dirname(filePath), { recursive: true });
-        await fs6.writeFile(filePath, content, "utf-8");
+        await fs7.mkdir(path6.dirname(filePath), { recursive: true });
+        await fs7.writeFile(filePath, content, "utf-8");
         return { content: [{ type: "text", text: `Created note: ${args2?.file_path}` }] };
       }
       if (name2 === "obsidian_append_note") {
         const vp = getVaultPath();
         const filePath = getSafeFilePath(vp, String(args2?.file_path));
         const content = String(args2?.content || "");
-        await fs6.appendFile(filePath, "\n" + content, "utf-8");
+        await fs7.appendFile(filePath, "\n" + content, "utf-8");
         return { content: [{ type: "text", text: `Appended to note: ${args2?.file_path}` }] };
       }
       if (name2 === "obsidian_get_daily_note") {
         const vp = getVaultPath();
         const dateStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
-        const dailyFolder = await fs6.stat(path5.join(vp, "Daily Notes")).catch(() => null) ? "Daily Notes" : "";
+        const dailyFolder = await fs7.stat(path6.join(vp, "Daily Notes")).catch(() => null) ? "Daily Notes" : "";
         const fileName = `${dateStr}.md`;
-        const filePath = path5.join(vp, dailyFolder, fileName);
+        const filePath = path6.join(vp, dailyFolder, fileName);
         let content = "";
         try {
-          content = await fs6.readFile(filePath, "utf-8");
+          content = await fs7.readFile(filePath, "utf-8");
         } catch (e) {
-          await fs6.mkdir(path5.dirname(filePath), { recursive: true });
+          await fs7.mkdir(path6.dirname(filePath), { recursive: true });
           content = `# ${dateStr}
 
 `;
-          await fs6.writeFile(filePath, content, "utf-8");
+          await fs7.writeFile(filePath, content, "utf-8");
         }
         return { content: [{ type: "text", text: content }] };
       }
@@ -58170,7 +58540,7 @@ Obsidian desktop registered: false (desktop app registration is opt-in; pass reg
             continue;
           }
           try {
-            const content = await fs6.readFile(path5.join(vp, f), "utf-8");
+            const content = await fs7.readFile(path6.join(vp, f), "utf-8");
             if (content.toLowerCase().includes(query)) matches.push(f);
           } catch (e) {
           }
@@ -58214,7 +58584,7 @@ Content: ${r.text}
           const batch = files.slice(i2, i2 + batchSize);
           await Promise.all(batch.map(async (f) => {
             try {
-              const content = await fs6.readFile(path5.join(vp, f), "utf-8");
+              const content = await fs7.readFile(path6.join(vp, f), "utf-8");
               if (linkRegex.test(content)) {
                 backlinks.push(f);
               }
@@ -58231,23 +58601,23 @@ Content: ${r.text}
       if (name2 === "obsidian_get_links") {
         const vp = getVaultPath();
         const filePath = getSafeFilePath(vp, String(args2?.file_path));
-        const content = await fs6.readFile(filePath, "utf-8");
+        const content = await fs7.readFile(filePath, "utf-8");
         return { content: [{ type: "text", text: JSON.stringify(extractWikilinks(content), null, 2) }] };
       }
       if (name2 === "obsidian_move_note") {
         const vp = getVaultPath();
         const source = getSafeFilePath(vp, String(args2?.source_path));
         const dest = getSafeFilePath(vp, String(args2?.dest_path));
-        await fs6.mkdir(path5.dirname(dest), { recursive: true });
-        await fs6.rename(source, dest);
+        await fs7.mkdir(path6.dirname(dest), { recursive: true });
+        await fs7.rename(source, dest);
         return { content: [{ type: "text", text: `Moved ${args2?.source_path} to ${args2?.dest_path}` }] };
       }
       if (name2 === "obsidian_update_frontmatter") {
         const vp = getVaultPath();
         const filePath = getSafeFilePath(vp, String(args2?.file_path));
-        const fileContent = await fs6.readFile(filePath, "utf-8");
+        const fileContent = await fs7.readFile(filePath, "utf-8");
         const updateArg = args2?.updates && typeof args2.updates === "object" ? { updates: args2.updates } : { key: String(args2?.key), value: String(args2?.value) };
-        await fs6.writeFile(filePath, applyFrontmatterUpdate(fileContent, updateArg), "utf-8");
+        await fs7.writeFile(filePath, applyFrontmatterUpdate(fileContent, updateArg), "utf-8");
         return { content: [{ type: "text", text: `Updated frontmatter in ${args2?.file_path}` }] };
       }
       if (name2 === "obsidian_replace_section") {
@@ -58255,10 +58625,10 @@ Content: ${r.text}
         const filePath = getSafeFilePath(vp, String(args2?.file_path));
         const heading = String(args2?.heading);
         const content = String(args2?.content);
-        const fileContent = await fs6.readFile(filePath, "utf-8");
+        const fileContent = await fs7.readFile(filePath, "utf-8");
         const range2 = findSectionRange(fileContent, heading);
         if (!range2) throw new McpError(ErrorCode.InvalidParams, `Heading "${heading}" not found in ${args2?.file_path}`);
-        await fs6.writeFile(filePath, replaceSection(fileContent, range2, content), "utf-8");
+        await fs7.writeFile(filePath, replaceSection(fileContent, range2, content), "utf-8");
         return { content: [{ type: "text", text: `Replaced section "${heading}" in ${args2?.file_path}` }] };
       }
       if (name2 === "obsidian_insert_at_heading") {
@@ -58267,9 +58637,9 @@ Content: ${r.text}
         const heading = String(args2?.heading);
         const content = String(args2?.content);
         const position = args2?.position || "end";
-        const fileContent = await fs6.readFile(filePath, "utf-8");
+        const fileContent = await fs7.readFile(filePath, "utf-8");
         const range2 = findSectionRange(fileContent, heading);
-        await fs6.writeFile(filePath, insertAtHeading(fileContent, heading, content, position, range2), "utf-8");
+        await fs7.writeFile(filePath, insertAtHeading(fileContent, heading, content, position, range2), "utf-8");
         return { content: [{ type: "text", text: `Inserted content under "${heading}" in ${args2?.file_path}` }] };
       }
       if (name2 === "obsidian_append_daily_log") {
@@ -58277,14 +58647,14 @@ Content: ${r.text}
         const heading = String(args2?.heading);
         const content = String(args2?.content);
         const dateStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
-        const dailyFolder = await fs6.stat(path5.join(vp, "Daily Notes")).catch(() => null) ? "Daily Notes" : "";
+        const dailyFolder = await fs7.stat(path6.join(vp, "Daily Notes")).catch(() => null) ? "Daily Notes" : "";
         const fileName = `${dateStr}.md`;
-        const filePath = path5.join(vp, dailyFolder, fileName);
+        const filePath = path6.join(vp, dailyFolder, fileName);
         let fileContent = "";
         try {
-          fileContent = await fs6.readFile(filePath, "utf-8");
+          fileContent = await fs7.readFile(filePath, "utf-8");
         } catch (e) {
-          await fs6.mkdir(path5.dirname(filePath), { recursive: true });
+          await fs7.mkdir(path6.dirname(filePath), { recursive: true });
           fileContent = `# ${dateStr}
 
 `;
@@ -58300,15 +58670,15 @@ Content: ${r.text}
 
 ## ${heading}${entry}`;
         }
-        await fs6.writeFile(filePath, fileContent, "utf-8");
+        await fs7.writeFile(filePath, fileContent, "utf-8");
         return { content: [{ type: "text", text: `Appended to daily note under "${heading}"` }] };
       }
       if (name2 === "obsidian_replace_in_note") {
         const vp = getVaultPath();
         const filePath = getSafeFilePath(vp, String(args2?.file_path));
-        const fileContent = await fs6.readFile(filePath, "utf-8");
+        const fileContent = await fs7.readFile(filePath, "utf-8");
         const updated = replaceInNote(fileContent, String(args2?.old_text), String(args2?.new_text ?? ""));
-        await fs6.writeFile(filePath, updated, "utf-8");
+        await fs7.writeFile(filePath, updated, "utf-8");
         return { content: [{ type: "text", text: `Replaced text in ${args2?.file_path}` }] };
       }
       if (name2 === "obsidian_get_broken_links") {
@@ -58316,10 +58686,10 @@ Content: ${r.text}
         const pattern = listNotesPattern(args2?.subfolder ? String(args2.subfolder) : void 0);
         const files = await Ze(pattern, { cwd: vp, follow: true });
         const allFiles = await Ze("**/*.md", { cwd: vp, follow: true });
-        const nameSet = new Set(allFiles.map((f) => path5.basename(f, ".md").toLowerCase()));
+        const nameSet = new Set(allFiles.map((f) => path6.basename(f, ".md").toLowerCase()));
         const targetMap = /* @__PURE__ */ new Map();
         for (const f of files) {
-          const content = await fs6.readFile(path5.join(vp, f), "utf-8").catch(() => "");
+          const content = await fs7.readFile(path6.join(vp, f), "utf-8").catch(() => "");
           for (const link of extractWikilinks(content)) {
             const target = stripHeadingFromLink(link);
             if (!target) continue;
@@ -58340,6 +58710,20 @@ Content: ${r.text}
         const lines = broken.map((entry) => `[[${entry.target}]] \u2014 in: ${entry.refs.join(", ")}`).join("\n");
         return { content: [{ type: "text", text: `Found ${broken.length} broken link(s):
 ${lines}` }] };
+      }
+      if (name2 === "obsidian_harvest_cli_sessions") {
+        const vp = VAULT_PATH ?? void 0;
+        const report = await harvestSessions({
+          date: args2?.date ? String(args2.date) : void 0,
+          vaultPath: vp,
+          templatePath: args2?.template_path ? String(args2.template_path) : void 0
+        });
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(report, null, 2)
+          }]
+        };
       }
       throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name2}`);
     } catch (error2) {
