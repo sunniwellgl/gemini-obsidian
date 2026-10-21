@@ -50,6 +50,7 @@ import {
   isObsidianVault,
   validateVaultRoot,
 } from './utils.js';
+import { harvestSessions } from './session-harvester.js';
 
 let VAULT_PATH: string | null = process.env.OBSIDIAN_VAULT_PATH || null;
 const indexer = new VaultIndexer();
@@ -133,7 +134,7 @@ async function readStdin(): Promise<string> {
   const args = process.argv.slice(2);
   
   // If arguments start with a tool name (simple heuristic)
-  const knownTools = ['obsidian_list_notes', 'obsidian_read_note', 'obsidian_search_notes', 'obsidian_rag_index', 'obsidian_rag_query', 'obsidian_set_vault', 'obsidian_create_vault', 'obsidian_create_note', 'obsidian_append_note', 'obsidian_get_daily_note', 'obsidian_get_backlinks', 'obsidian_get_links', 'obsidian_move_note', 'obsidian_update_frontmatter', 'obsidian_append_daily_log', 'obsidian_replace_section', 'obsidian_insert_at_heading', 'obsidian_replace_in_note', 'obsidian_get_broken_links', 'validate_frontmatter'];
+  const knownTools = ['obsidian_list_notes', 'obsidian_read_note', 'obsidian_search_notes', 'obsidian_rag_index', 'obsidian_rag_query', 'obsidian_set_vault', 'obsidian_create_vault', 'obsidian_create_note', 'obsidian_append_note', 'obsidian_get_daily_note', 'obsidian_get_backlinks', 'obsidian_get_links', 'obsidian_move_note', 'obsidian_update_frontmatter', 'obsidian_append_daily_log', 'obsidian_replace_section', 'obsidian_insert_at_heading', 'obsidian_replace_in_note', 'obsidian_get_broken_links', 'obsidian_harvest_cli_sessions', 'validate_frontmatter'];
   
   if (args.length > 0 && knownTools.includes(args[0])) {
     const toolName = args[0];
@@ -381,6 +382,24 @@ async function readStdin(): Promise<string> {
             result = broken.length === 0
                 ? 'No broken links found.'
                 : `Found ${broken.length} broken link(s):\n${broken.map((entry) => `[[${entry.target}]] — in: ${entry.refs.join(', ')}`).join('\n')}`;
+        } else if (toolName === 'obsidian_harvest_cli_sessions') {
+            let vp: string | undefined;
+            if (parsedArgs.vault_path !== undefined && parsedArgs.vault_path !== true) {
+                vp = await validateVaultRoot(String(parsedArgs.vault_path));
+            } else {
+                try {
+                    vp = getVaultPath();
+                } catch {
+                    vp = undefined;
+                }
+            }
+            const report = await harvestSessions({
+                date: parsedArgs.date ? String(parsedArgs.date) : undefined,
+                geminiDir: parsedArgs.gemini_dir ? String(parsedArgs.gemini_dir) : undefined,
+                vaultPath: vp,
+                templatePath: parsedArgs.template_path ? String(parsedArgs.template_path) : undefined,
+            });
+            result = JSON.stringify(report, null, 2);
         } else if (toolName === 'validate_frontmatter') {
             if (!parsedArgs.hook) {
                 process.exit(0);
@@ -691,6 +710,17 @@ async function readStdin(): Promise<string> {
             },
           },
         },
+        {
+          name: 'obsidian_harvest_cli_sessions',
+          description: 'Scan and harvest Gemini CLI terminal sessions across all project workspaces for a given date (defaults to today), extracting user intents, topics, and key engineering milestones with support for custom template-driven daily logging and work recaps.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              date: { type: 'string', description: 'Target date in YYYY-MM-DD format (defaults to current local date)' },
+              template_path: { type: 'string', description: 'Optional relative path to a custom markdown template in the vault (e.g. "Templates/Daily-Work-Log.md")' },
+            },
+          },
+        },
       ],
     };
   });
@@ -954,6 +984,21 @@ async function readStdin(): Promise<string> {
           }
           const lines = broken.map((entry) => `[[${entry.target}]] — in: ${entry.refs.join(', ')}`).join('\n');
           return { content: [{ type: 'text', text: `Found ${broken.length} broken link(s):\n${lines}` }] };
+      }
+      if (name === 'obsidian_harvest_cli_sessions') {
+          const vp = VAULT_PATH ?? undefined;
+          const report = await harvestSessions({
+              date: args?.date ? String(args.date) : undefined,
+              vaultPath: vp,
+              templatePath: args?.template_path ? String(args.template_path) : undefined,
+          });
+
+          return {
+              content: [{
+                  type: 'text',
+                  text: JSON.stringify(report, null, 2),
+              }],
+          };
       }
       throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
     } catch (error: any) {
